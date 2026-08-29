@@ -70,7 +70,8 @@ The Anchor build is intentionally handled by cloud CI because Anchor's supported
 - Equal-stake SPL-token deposits into isolated battle PDA vaults are implemented.
 - Open-battle cancellation returns the challenger's locked stake through a PDA-signed transfer.
 - LiteSVM integration tests exercise real SPL Token CPI custody flows in cloud CI.
-- Jupiter CPI, settlement payouts and prize claims are not implemented yet.
+- A test-only swap router exercises PDA-signed exact-input CPI, arena token policies, deterministic asset vaults, minimum output enforcement and atomic rejection of redirected output.
+- Production Jupiter routes, settlement payouts and prize claims are not implemented yet.
 - The Anchor program and protocol config are live on devnet. The web app builds and submits real Wallet Standard Create/Join transactions using Circle devnet USDC, deterministic battle PDAs and isolated player vaults.
 - Do not deploy the current program with real funds.
 - Mainnet deployment requires completed threat modelling, independent audit, and explicit release approval.

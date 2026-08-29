@@ -52,11 +52,11 @@ Pure TypeScript reference implementation of battle rules. It provides fast Windo
 
 ### `programs/pvp_trade`
 
-Anchor source for the authoritative Solana program. Version 0.2 adds equal SPL-token stake deposits into self-authorised per-trader PDA vaults and a PDA-signed cancellation refund. The settlement mint is pinned in `ProtocolConfig` and must use six decimal places. Jupiter CPI remains isolated from this custody slice.
+Anchor source for the authoritative Solana program. Version 0.3 includes equal SPL-token stake custody, PDA-signed refunds, an approved-router configuration PDA, arena token policies, deterministic trade-asset vaults and post-CPI balance invariants. The production Jupiter route adapter remains pending.
 
 ### `apps/web`
 
-Product shell and battle UX. It uses the official `@solana/kit` Wallet Standard flow on devnet, exposes battle preparation controls, and consumes the protocol package for display types. Transaction submission remains disabled until a permanent program ID is deployed.
+Product shell and battle UX. It uses the official `@solana/kit` Wallet Standard flow on devnet, submits live Create/Join transactions to the permanent devnet program, and consumes the protocol package for display types. Swap quote and route submission are the next client slice.
 
 ## Data flow for a future swap
 
@@ -82,8 +82,8 @@ Product shell and battle UX. It uses the official `@solana/kit` Wallet Standard 
 
 1. Pure lifecycle model and negative-transition tests
 2. Anchor lifecycle and account-constraint tests
-3. Mock token custody and adversarial transfer tests (equal deposits, refund, wrong mint and insufficient balance implemented)
-4. Jupiter CPI with strict destination validation
+3. Mock token custody and adversarial transfer tests (equal deposits, refund, wrong mint, insufficient balance and redirected swap output implemented)
+4. Jupiter CPI with strict destination and post-swap balance validation (mock router adapter implemented; live Jupiter route pending)
 5. Settlement idempotency and partial-failure tests
 6. Property/fuzz testing
 7. Independent audit and closed mainnet alpha

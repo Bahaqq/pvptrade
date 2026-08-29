@@ -18,7 +18,10 @@
 - LiteSVM custody entegrasyon testleri eşit deposit, ayrı vault, iptal iadesi, yanlış mint ve yetersiz bakiye senaryolarını kapsıyor.
 - Manuel ve environment-secret korumalı devnet deployment workflow'u programı deploy edip protocol PDA'sını Circle devnet USDC ile initialize edecek şekilde hazır.
 - Kalıcı program adresi devnet'e deploy edildi ve protocol PDA'sı Circle devnet USDC ile initialize edildi.
-- Sıradaki kritik iş: iki cüzdana devnet USDC sağlayıp canlı Create/Join smoke testi yapmak.
+- İki ayrı test oyuncusuyla canlı devnet Create/Join smoke testi geçti; iki 5 USDC stake izole PDA kasalarına alındı.
+- Yapılandırılmış swap router PDA'sı, arena bazlı token policy hesapları, oyuncu+mint bazlı asset vault'ları ve exact-input/min-output kontrolleri eklendi.
+- Mock swap CPI testleri normal fon akışını ve değiştirilmiş destination rotasının atomik reddini kapsıyor.
+- Sıradaki kritik iş: Jupiter `/swap/v2/build` quote adapter'ını web/API katmanına bağlamak ve mainnet-fork üzerinde gerçek Router instruction doğrulaması yapmak.
 
 ## 1. Ürün vizyonu
 

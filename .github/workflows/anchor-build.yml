@@ -39,7 +39,20 @@ jobs:
         run: rustup default stable
 
       - name: Build program
-        run: anchor build --ignore-keys
+        shell: bash
+        run: |
+          set +e
+          anchor build --ignore-keys 2>&1 | tee anchor-build.log
+          build_status=${PIPESTATUS[0]}
+          if [ "$build_status" -ne 0 ]; then
+            {
+              echo "### Anchor build failure"
+              echo '```text'
+              tail -n 160 anchor-build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$build_status"
 
       - name: Reclaim build space for LiteSVM
         run: |

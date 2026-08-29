@@ -94,7 +94,7 @@ The production vault implementation MUST satisfy all of the following:
 6. Protocol fees cannot be collected before the fee-triggering event defined in the terms.
 7. Admin pause authority cannot seize battle funds.
 
-Version 0.2 implements the initial settlement-asset subset of these rules: a protocol-pinned six-decimal mint, one PDA token vault per trader, equal `transfer_checked` deposits, and challenger refund on open-battle cancellation. Trade-asset custody and active-battle withdrawal rejection remain part of the next proof slice.
+Version 0.3 implements the initial trade-asset custody subset of these rules: the router program is pinned in a separate configuration PDA, mints require arena-specific policy accounts, and non-settlement assets live in deterministic battle+player+mint PDA vaults. Every exact-input CPI must debit exactly the requested amount and credit at least the signed minimum output; a redirected output causes the entire transaction to roll back.
 
 ## 7. Trading rules
 
@@ -170,7 +170,7 @@ Emergency actions must preserve player ownership and must not give the protocol 
 
 ## 11. Current implementation boundary
 
-Version 0.2 code implements:
+Version 0.3 code implements:
 
 - Protocol configuration state
 - Battle creation
@@ -184,12 +184,17 @@ Version 0.2 code implements:
 - Separate self-authorised PDA token vaults scoped by battle and trader
 - Challenger refund when cancelling an open battle
 - LiteSVM custody tests for equal deposits, isolated vaults, atomic refund, wrong mint and insufficient balance
+- Configurable approved-router PDA and bounded slippage
+- Arena-specific token policy accounts
+- Deterministic per-player trade-asset vaults
+- Opaque router CPI forwarding with PDA signing and exact-input/min-output postconditions
+- Mock-router LiteSVM coverage for a successful swap and atomically rejected output redirection
 
-Version 0.2 does not implement:
+Version 0.3 does not implement:
 
-- Jupiter CPI
-- Devnet program deployment and live web transaction submission
-- Token policy accounts
+- Production Jupiter Router instructions or quote API integration
+- Live swap execution on mainnet liquidity
+- Token-policy risk data ingestion and policy updates
 - Settlement keeper execution
 - Prize claims
 - Mainnet-ready upgrade governance
