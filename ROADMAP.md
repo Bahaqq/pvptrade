@@ -2,9 +2,19 @@
 
 > Sürüm: 0.1  
 > Tarih: 29 Ağustos 2026  
-> Durum: Keşif ve protokol tasarımı  
+> Durum: Faz 1 — Proof of Architecture geliştiriliyor
 > Ana ağ: Solana  
 > Doküman dili: Türkçe
+
+## Güncel geliştirme özeti
+
+- Battle yaşam döngüsü ve TypeScript referans modeli hazır.
+- Anchor programı bulut CI üzerinde derleniyor.
+- Altı ondalıklı settlement mint protokol yapılandırmasına sabitlendi.
+- Kurucu ve rakip stake'leri ayrı, self-authorised PDA token vault'larına yatırılıyor.
+- Açık battle iptalinde kurucu stake'i PDA imzasıyla iade ediliyor.
+- Web uygulamasında Solana Wallet Standard devnet bağlantısı ve battle hazırlama konsolu hazır.
+- Sıradaki kritik iş: custody entegrasyon testleri, kalıcı program ID ve kontrollü devnet deployment.
 
 ## 1. Ürün vizyonu
 

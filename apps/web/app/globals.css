@@ -12,10 +12,12 @@
 }
 
 html {
+  overflow-x: clip;
   scroll-behavior: smooth;
 }
 
 body {
+  overflow-x: hidden;
   margin: 0;
   color: var(--ink);
   background:
@@ -72,6 +74,13 @@ a {
   font-family: "Courier New", monospace;
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.navActions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
 .pulse {
@@ -148,6 +157,8 @@ h1 span {
 }
 
 .primaryButton {
+  display: inline-grid;
+  place-items: center;
   min-height: 52px;
   padding: 0 24px;
   color: var(--paper);
@@ -155,8 +166,110 @@ h1 span {
   border: 1px solid var(--ink);
   border-radius: 2px;
   font-weight: 800;
-  cursor: not-allowed;
+  cursor: pointer;
   opacity: 1;
+  text-decoration: none;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--acid);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.walletControl {
+  position: relative;
+  z-index: 30;
+}
+
+.walletButton {
+  min-height: 40px;
+  padding: 0 15px;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.walletButton.connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.walletDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--acid);
+}
+
+.walletMenu {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  width: min(310px, calc(100vw - 28px));
+  padding: 15px;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid #343935;
+  box-shadow: 8px 8px 0 var(--acid);
+}
+
+.walletMenuLabel,
+.walletMenu code {
+  display: block;
+}
+
+.walletMenuLabel {
+  margin-bottom: 10px;
+  color: #a5aaa3;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.walletMenu code {
+  overflow-wrap: anywhere;
+  margin-bottom: 12px;
+  color: var(--acid);
+  font-size: 11px;
+}
+
+.walletMenu button {
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--paper);
+  background: #1d211e;
+  border: 1px solid #3a403a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.walletPicker button + button {
+  margin-top: 7px;
+}
+
+.walletMenu p {
+  margin: 0;
+  color: #a5aaa3;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.walletMenu .walletError {
+  margin-top: 10px;
+  color: #ff9b83;
 }
 
 .textLink {
@@ -361,6 +474,210 @@ h1 span {
   padding: 126px 0 110px;
 }
 
+.consoleSection {
+  padding: 112px 0 124px;
+}
+
+.consoleHeading {
+  margin-bottom: 58px;
+}
+
+.consoleGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  border: 1px solid var(--line);
+}
+
+.battleForm,
+.readinessPanel {
+  padding: 34px;
+}
+
+.battleForm {
+  border-right: 1px solid var(--line);
+}
+
+.formRow label,
+.battleForm legend {
+  display: block;
+  margin-bottom: 11px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.amountInput {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--ink);
+}
+
+.amountInput input {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 0 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.amountInput span {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.formRow small {
+  display: block;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.battleForm fieldset {
+  margin: 34px 0;
+  padding: 0;
+  border: 0;
+}
+
+.arenaOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.arenaOption {
+  padding: 18px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  text-align: left;
+}
+
+.arenaOption.selected {
+  background: var(--acid);
+  border-color: var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.arenaOption strong,
+.arenaOption span {
+  display: block;
+}
+
+.arenaOption strong {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.arenaOption span {
+  color: #555b54;
+  font-size: 11px;
+}
+
+.consoleAction {
+  width: 100%;
+}
+
+.readinessPanel {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.readinessTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+}
+
+.networkPill {
+  padding: 6px 9px;
+  color: var(--acid);
+  border: 1px solid #3b413c;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.readinessPanel ul {
+  margin: 36px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.readinessPanel li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #303530;
+  color: #838982;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+}
+
+.readinessPanel li > span {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #464d47;
+  border-radius: 50%;
+}
+
+.readinessPanel li.ready {
+  color: #d7dbd4;
+}
+
+.readinessPanel li.ready > span {
+  color: var(--ink);
+  background: var(--acid);
+  border-color: var(--acid);
+}
+
+.readinessNote,
+.preparedBattle p {
+  color: #939991;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.preparedBattle {
+  padding: 18px;
+  border: 1px solid #3b413c;
+}
+
+.preparedBattle span,
+.preparedBattle strong {
+  display: block;
+}
+
+.preparedBattle span {
+  margin-bottom: 8px;
+  color: #8f958e;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.preparedBattle strong {
+  margin-bottom: 8px;
+  color: var(--acid);
+  font-size: 25px;
+}
+
+.preparedBattle p {
+  margin: 0;
+}
+
 .sectionHeading {
   display: grid;
   grid-template-columns: 0.65fr 1.35fr;
@@ -460,8 +777,14 @@ h1 span {
 @media (max-width: 860px) {
   .heroGrid,
   .sectionHeading,
-  .buildGrid {
+  .buildGrid,
+  .consoleGrid {
     grid-template-columns: 1fr;
+  }
+
+  .battleForm {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .battleCard {
@@ -480,6 +803,10 @@ h1 span {
 
   .navStatus {
     display: none;
+  }
+
+  .navActions {
+    gap: 0;
   }
 
   .hero {
@@ -501,6 +828,15 @@ h1 span {
 
   .stageGrid {
     grid-template-columns: 1fr;
+  }
+
+  .arenaOptions {
+    grid-template-columns: 1fr;
+  }
+
+  .battleForm,
+  .readinessPanel {
+    padding: 24px;
   }
 
   .stage {

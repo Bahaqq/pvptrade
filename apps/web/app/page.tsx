@@ -1,8 +1,11 @@
 import { ARENA_TYPE, createBattle, formatMicroUsdc } from "@pvptrade/protocol";
+import { BattleConsole } from "./components/battle-console";
+import { WalletButton } from "./components/wallet-button";
 
 const previewBattle = createBattle({
   id: "preview-001",
   challenger: "7Xk...pvp",
+  settlementMint: "devnet-mock-usdc",
   stakeMicroUsdc: 100_000_000n,
   durationSeconds: 86_400,
   tradingLockSeconds: 300,
@@ -26,9 +29,12 @@ export default function HomePage() {
           <span className="brandMark">P</span>
           <span>PVP TRADE</span>
         </a>
-        <div className="navStatus">
-          <span className="pulse" />
-          Protocol build 0.1
+        <div className="navActions">
+          <div className="navStatus">
+            <span className="pulse" />
+            Devnet build 0.2
+          </div>
+          <WalletButton />
         </div>
       </nav>
 
@@ -46,9 +52,7 @@ export default function HomePage() {
               against one opponent under identical rules.
             </p>
             <div className="heroActions">
-              <button type="button" className="primaryButton" disabled>
-                Battles coming soon
-              </button>
+              <a className="primaryButton" href="#battle-console">Open battle console</a>
               <a className="textLink" href="#protocol">
                 Explore the protocol <span aria-hidden="true">↘</span>
               </a>
@@ -97,6 +101,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <BattleConsole />
+
       <section className="ticker" aria-label="Protocol principles">
         <div>
           <span>Equal stake</span>
@@ -136,14 +142,14 @@ export default function HomePage() {
           <ul>
             <li><span>✓</span> Protocol state machine</li>
             <li><span>✓</span> Executable reference model</li>
-            <li><span>→</span> Anchor account constraints</li>
+            <li><span>✓</span> SPL-token PDA vault custody</li>
             <li><span>→</span> Jupiter CPI vault swaps</li>
           </ul>
         </div>
       </section>
 
       <footer className="footer shell">
-        <span>PVP Trade / Build 0.1</span>
+        <span>PVP Trade / Build 0.2</span>
         <span>Not available for real funds</span>
       </footer>
     </main>

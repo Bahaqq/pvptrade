@@ -52,11 +52,11 @@ Pure TypeScript reference implementation of battle rules. It provides fast Windo
 
 ### `programs/pvp_trade`
 
-Anchor source for the authoritative Solana program. The first slice mirrors the reference lifecycle. Token custody and Jupiter CPI are added only after lifecycle invariants are stable.
+Anchor source for the authoritative Solana program. Version 0.2 adds equal SPL-token stake deposits into self-authorised per-trader PDA vaults and a PDA-signed cancellation refund. The settlement mint is pinned in `ProtocolConfig` and must use six decimal places. Jupiter CPI remains isolated from this custody slice.
 
 ### `apps/web`
 
-Product shell and battle UX. It consumes the protocol package for display types while authoritative transactions target the Anchor program.
+Product shell and battle UX. It uses the official `@solana/kit` Wallet Standard flow on devnet, exposes battle preparation controls, and consumes the protocol package for display types. Transaction submission remains disabled until a permanent program ID is deployed.
 
 ## Data flow for a future swap
 
@@ -81,7 +81,7 @@ Product shell and battle UX. It consumes the protocol package for display types 
 
 1. Pure lifecycle model and negative-transition tests
 2. Anchor lifecycle and account-constraint tests
-3. Mock token custody and adversarial transfer tests
+3. Mock token custody and adversarial transfer tests (in progress; deposit/refund constraints implemented)
 4. Jupiter CPI with strict destination validation
 5. Settlement idempotency and partial-failure tests
 6. Property/fuzz testing

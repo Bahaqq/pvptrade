@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
 // Lifecycle proof only. A deployment keypair and permanent program id are assigned
 // before devnet deployment; the System Program id must never be used for deployment.
@@ -26,6 +27,7 @@ pub mod pvp_trade {
 
         let config = &mut ctx.accounts.protocol_config;
         config.authority = ctx.accounts.authority.key();
+        config.settlement_mint = ctx.accounts.settlement_mint.key();
         config.max_settlement_fee_bps = max_settlement_fee_bps;
         config.default_trading_lock_seconds = default_trading_lock_seconds;
         config.paused = false;
@@ -60,6 +62,9 @@ pub mod pvp_trade {
         battle.id = battle_id;
         battle.challenger = ctx.accounts.challenger.key();
         battle.opponent = Pubkey::default();
+        battle.settlement_mint = ctx.accounts.settlement_mint.key();
+        battle.challenger_vault = ctx.accounts.challenger_vault.key();
+        battle.opponent_vault = Pubkey::default();
         battle.stake_micro_usdc = stake_micro_usdc;
         battle.duration_seconds = duration_seconds;
         battle.trading_lock_seconds = trading_lock_seconds;
@@ -75,11 +80,28 @@ pub mod pvp_trade {
         battle.winner = Pubkey::default();
         battle.is_draw = false;
         battle.bump = ctx.bumps.battle;
+        battle.challenger_vault_bump = ctx.bumps.challenger_vault;
+        battle.opponent_vault_bump = 0;
+
+        token::transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.challenger_source.to_account_info(),
+                    mint: ctx.accounts.settlement_mint.to_account_info(),
+                    to: ctx.accounts.challenger_vault.to_account_info(),
+                    authority: ctx.accounts.challenger.to_account_info(),
+                },
+            ),
+            stake_micro_usdc,
+            ctx.accounts.settlement_mint.decimals,
+        )?;
 
         emit!(BattleCreated {
             battle: battle.key(),
             battle_id,
             challenger: battle.challenger,
+            challenger_vault: battle.challenger_vault,
             stake_micro_usdc,
             arena,
         });
@@ -97,11 +119,29 @@ pub mod pvp_trade {
         );
 
         battle.opponent = ctx.accounts.opponent.key();
+        battle.opponent_vault = ctx.accounts.opponent_vault.key();
+        battle.opponent_vault_bump = ctx.bumps.opponent_vault;
+
+        token::transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.opponent_source.to_account_info(),
+                    mint: ctx.accounts.settlement_mint.to_account_info(),
+                    to: ctx.accounts.opponent_vault.to_account_info(),
+                    authority: ctx.accounts.opponent.to_account_info(),
+                },
+            ),
+            battle.stake_micro_usdc,
+            ctx.accounts.settlement_mint.decimals,
+        )?;
+
         battle.status = BattleStatus::Funded;
 
         emit!(BattleJoined {
             battle: battle.key(),
             opponent: battle.opponent,
+            opponent_vault: battle.opponent_vault,
         });
 
         Ok(())
@@ -201,9 +241,38 @@ pub mod pvp_trade {
     }
 
     pub fn cancel_battle(ctx: Context<CancelBattle>) -> Result<()> {
-        let battle = &mut ctx.accounts.battle;
-        require!(battle.status == BattleStatus::Open, PvpTradeError::InvalidStatus);
-        battle.status = BattleStatus::Cancelled;
+        require!(
+            ctx.accounts.battle.status == BattleStatus::Open,
+            PvpTradeError::InvalidStatus
+        );
+
+        let battle_key = ctx.accounts.battle.key();
+        let challenger_key = ctx.accounts.challenger.key();
+        let challenger_vault_bump = ctx.accounts.battle.challenger_vault_bump;
+        let stake_micro_usdc = ctx.accounts.battle.stake_micro_usdc;
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"vault",
+            battle_key.as_ref(),
+            challenger_key.as_ref(),
+            &[challenger_vault_bump],
+        ]];
+
+        token::transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.challenger_vault.to_account_info(),
+                    mint: ctx.accounts.settlement_mint.to_account_info(),
+                    to: ctx.accounts.challenger_refund.to_account_info(),
+                    authority: ctx.accounts.challenger_vault.to_account_info(),
+                },
+            )
+            .with_signer(signer_seeds),
+            stake_micro_usdc,
+            ctx.accounts.settlement_mint.decimals,
+        )?;
+
+        ctx.accounts.battle.status = BattleStatus::Cancelled;
         Ok(())
     }
 }
@@ -218,6 +287,8 @@ pub struct InitializeProtocol<'info> {
         bump
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(constraint = settlement_mint.decimals == 6 @ PvpTradeError::InvalidSettlementMintDecimals)]
+    pub settlement_mint: Account<'info, Mint>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -236,8 +307,26 @@ pub struct CreateBattle<'info> {
         bump
     )]
     pub battle: Account<'info, Battle>,
+    #[account(address = protocol_config.settlement_mint @ PvpTradeError::InvalidSettlementMint)]
+    pub settlement_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        token::mint = settlement_mint,
+        token::authority = challenger
+    )]
+    pub challenger_source: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = challenger,
+        seeds = [b"vault", battle.key().as_ref(), challenger.key().as_ref()],
+        bump,
+        token::mint = settlement_mint,
+        token::authority = challenger_vault
+    )]
+    pub challenger_vault: Account<'info, TokenAccount>,
     #[account(mut)]
     pub challenger: Signer<'info>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
@@ -247,7 +336,27 @@ pub struct JoinBattle<'info> {
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(mut, seeds = [b"battle", battle.id.as_ref()], bump = battle.bump)]
     pub battle: Account<'info, Battle>,
+    #[account(address = battle.settlement_mint @ PvpTradeError::InvalidSettlementMint)]
+    pub settlement_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        token::mint = settlement_mint,
+        token::authority = opponent
+    )]
+    pub opponent_source: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = opponent,
+        seeds = [b"vault", battle.key().as_ref(), opponent.key().as_ref()],
+        bump,
+        token::mint = settlement_mint,
+        token::authority = opponent_vault
+    )]
+    pub opponent_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
     pub opponent: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -288,11 +397,28 @@ pub struct CancelBattle<'info> {
     )]
     pub battle: Account<'info, Battle>,
     pub challenger: Signer<'info>,
+    #[account(address = battle.settlement_mint @ PvpTradeError::InvalidSettlementMint)]
+    pub settlement_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        address = battle.challenger_vault,
+        token::mint = settlement_mint,
+        token::authority = challenger_vault
+    )]
+    pub challenger_vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint = settlement_mint,
+        token::authority = challenger
+    )]
+    pub challenger_refund: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[account]
 pub struct ProtocolConfig {
     pub authority: Pubkey,
+    pub settlement_mint: Pubkey,
     pub max_settlement_fee_bps: u16,
     pub default_trading_lock_seconds: i64,
     pub paused: bool,
@@ -300,7 +426,7 @@ pub struct ProtocolConfig {
 }
 
 impl ProtocolConfig {
-    pub const SPACE: usize = 8 + 32 + 2 + 8 + 1 + 1;
+    pub const SPACE: usize = 8 + 32 + 32 + 2 + 8 + 1 + 1;
 }
 
 #[account]
@@ -308,6 +434,9 @@ pub struct Battle {
     pub id: [u8; 32],
     pub challenger: Pubkey,
     pub opponent: Pubkey,
+    pub settlement_mint: Pubkey,
+    pub challenger_vault: Pubkey,
+    pub opponent_vault: Pubkey,
     pub stake_micro_usdc: u64,
     pub duration_seconds: i64,
     pub trading_lock_seconds: i64,
@@ -323,10 +452,12 @@ pub struct Battle {
     pub winner: Pubkey,
     pub is_draw: bool,
     pub bump: u8,
+    pub challenger_vault_bump: u8,
+    pub opponent_vault_bump: u8,
 }
 
 impl Battle {
-    pub const SPACE: usize = 8 + 256;
+    pub const SPACE: usize = 8 + 384;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -353,6 +484,7 @@ pub struct BattleCreated {
     pub battle: Pubkey,
     pub battle_id: [u8; 32],
     pub challenger: Pubkey,
+    pub challenger_vault: Pubkey,
     pub stake_micro_usdc: u64,
     pub arena: Arena,
 }
@@ -361,6 +493,7 @@ pub struct BattleCreated {
 pub struct BattleJoined {
     pub battle: Pubkey,
     pub opponent: Pubkey,
+    pub opponent_vault: Pubkey,
 }
 
 #[event]
@@ -404,4 +537,8 @@ pub enum PvpTradeError {
     BattleNotEnded,
     #[msg("Arithmetic overflow while calculating battle time.")]
     ArithmeticOverflow,
+    #[msg("Settlement mint does not match the protocol configuration.")]
+    InvalidSettlementMint,
+    #[msg("Settlement mint must use six decimal places.")]
+    InvalidSettlementMintDecimals,
 }

@@ -94,7 +94,7 @@ The production vault implementation MUST satisfy all of the following:
 6. Protocol fees cannot be collected before the fee-triggering event defined in the terms.
 7. Admin pause authority cannot seize battle funds.
 
-These custody rules are specified now but implemented after the lifecycle proof is complete.
+Version 0.2 implements the initial settlement-asset subset of these rules: a protocol-pinned six-decimal mint, one PDA token vault per trader, equal `transfer_checked` deposits, and challenger refund on open-battle cancellation. Trade-asset custody and active-battle withdrawal rejection remain part of the next proof slice.
 
 ## 7. Trading rules
 
@@ -170,7 +170,7 @@ Emergency actions must preserve player ownership and must not give the protocol 
 
 ## 11. Current implementation boundary
 
-Version 0.1 code implements:
+Version 0.2 code implements:
 
 - Protocol configuration state
 - Battle creation
@@ -178,12 +178,16 @@ Version 0.1 code implements:
 - Start and time-derived lifecycle transitions
 - Deterministic final-equity comparison
 - Pure TypeScript reference model and tests
+- Wallet Standard discovery and devnet connection UX
+- Protocol-pinned six-decimal settlement mint
+- Equal challenger and opponent SPL-token deposits
+- Separate self-authorised PDA token vaults scoped by battle and trader
+- Challenger refund when cancelling an open battle
 
-Version 0.1 does not implement:
+Version 0.2 does not implement:
 
-- USDC transfers
-- SPL token vaults
 - Jupiter CPI
+- Devnet program deployment and live web transaction submission
 - Token policy accounts
 - Settlement keeper execution
 - Prize claims

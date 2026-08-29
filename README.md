@@ -42,7 +42,10 @@ The Anchor build is intentionally handled by cloud CI because Anchor's supported
 ## Safety status
 
 - The current Anchor program models lifecycle state only.
-- Token custody and Jupiter CPI are not implemented yet.
+- Equal-stake SPL-token deposits into isolated battle PDA vaults are implemented.
+- Open-battle cancellation returns the challenger's locked stake through a PDA-signed transfer.
+- Jupiter CPI, settlement payouts and prize claims are not implemented yet.
+- The web app connects Wallet Standard wallets on devnet, but live battle transactions remain gated until deployment.
 - Do not deploy the current program with real funds.
 - Mainnet deployment requires completed threat modelling, independent audit, and explicit release approval.
 

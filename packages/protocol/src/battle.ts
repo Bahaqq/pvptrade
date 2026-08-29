@@ -24,6 +24,7 @@ export type PublicKeyString = string;
 export interface BattleTerms {
   id: string;
   challenger: PublicKeyString;
+  settlementMint: PublicKeyString;
   stakeMicroUsdc: bigint;
   durationSeconds: number;
   tradingLockSeconds: number;
@@ -50,6 +51,13 @@ export interface Battle {
   tradingLocksAt: number | null;
   tradingEndsAt: number | null;
   outcome: Readonly<BattleOutcome> | null;
+  custody: Readonly<BattleCustody>;
+}
+
+export interface BattleCustody {
+  challengerDepositedMicroUsdc: bigint;
+  opponentDepositedMicroUsdc: bigint;
+  challengerRefundedMicroUsdc: bigint;
 }
 
 export class BattleRuleError extends Error {
@@ -85,6 +93,11 @@ export function createBattle(terms: BattleTerms): Battle {
     "INVALID_CHALLENGER",
     "Challenger public key is required.",
   );
+  requireRule(
+    terms.settlementMint.trim().length > 0,
+    "INVALID_SETTLEMENT_MINT",
+    "Settlement mint public key is required.",
+  );
   requireRule(terms.stakeMicroUsdc > 0n, "INVALID_STAKE", "Stake must be greater than zero.");
   requireRule(terms.durationSeconds > 0, "INVALID_DURATION", "Duration must be positive.");
   requireRule(
@@ -113,6 +126,11 @@ export function createBattle(terms: BattleTerms): Battle {
     tradingLocksAt: null,
     tradingEndsAt: null,
     outcome: null,
+    custody: Object.freeze({
+      challengerDepositedMicroUsdc: terms.stakeMicroUsdc,
+      opponentDepositedMicroUsdc: 0n,
+      challengerRefundedMicroUsdc: 0n,
+    }),
   };
 }
 
@@ -129,6 +147,10 @@ export function joinBattle(battle: Battle, opponent: PublicKeyString): Battle {
     ...battle,
     opponent,
     status: BATTLE_STATUS.FUNDED,
+    custody: Object.freeze({
+      ...battle.custody,
+      opponentDepositedMicroUsdc: battle.terms.stakeMicroUsdc,
+    }),
   };
 }
 
@@ -239,6 +261,11 @@ export function cancelBattle(battle: Battle, actor: PublicKeyString): Battle {
   return {
     ...battle,
     status: BATTLE_STATUS.CANCELLED,
+    custody: Object.freeze({
+      ...battle.custody,
+      challengerDepositedMicroUsdc: 0n,
+      challengerRefundedMicroUsdc: battle.terms.stakeMicroUsdc,
+    }),
   };
 }
 

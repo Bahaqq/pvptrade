@@ -11,9 +11,14 @@
   "dependencies": {
     "@pvptrade/protocol": "*",
     "@solana/kit": "^8.1.0",
+    "@solana/kit-plugin-rpc": "^0.18.0",
+    "@solana/kit-plugin-wallet": "^0.18.0",
+    "@solana/react": "^8.1.0",
+    "@tanstack/react-query": "^5.102.8",
     "next": "^16.3.3",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "swr": "^2.5.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

@@ -16,6 +16,7 @@ import {
 const baseTerms = {
   id: "battle-001",
   challenger: "alice",
+  settlementMint: "mock-usdc-mint",
   stakeMicroUsdc: 100_000_000n,
   durationSeconds: 86_400,
   tradingLockSeconds: 300,
@@ -32,6 +33,11 @@ describe("battle lifecycle", () => {
   it("moves through the happy path and pays the higher-equity player", () => {
     const active = activeBattle();
     expect(active.status).toBe(BATTLE_STATUS.ACTIVE);
+    expect(active.custody).toEqual({
+      challengerDepositedMicroUsdc: 100_000_000n,
+      opponentDepositedMicroUsdc: 100_000_000n,
+      challengerRefundedMicroUsdc: 0n,
+    });
     expect(active.tradingLocksAt).toBe(88_100);
     expect(active.tradingEndsAt).toBe(88_400);
 
@@ -87,7 +93,13 @@ describe("battle lifecycle", () => {
 
   it("only allows the challenger to cancel an open battle", () => {
     const open = createBattle(baseTerms);
-    expect(cancelBattle(open, "alice").status).toBe(BATTLE_STATUS.CANCELLED);
+    const cancelled = cancelBattle(open, "alice");
+    expect(cancelled.status).toBe(BATTLE_STATUS.CANCELLED);
+    expect(cancelled.custody).toEqual({
+      challengerDepositedMicroUsdc: 0n,
+      opponentDepositedMicroUsdc: 0n,
+      challengerRefundedMicroUsdc: 100_000_000n,
+    });
     expect(() => cancelBattle(open, "bob")).toThrowError(
       expect.objectContaining<Partial<BattleRuleError>>({ code: "UNAUTHORISED" }),
     );
