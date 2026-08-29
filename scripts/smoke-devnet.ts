@@ -16,7 +16,12 @@ import {
   type InstructionWithSigners,
   type TransactionSigner,
 } from "@solana/kit";
-import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
+import {
+  findAssociatedTokenPda,
+  getCreateAssociatedTokenIdempotentInstructionAsync,
+  getTransferCheckedInstruction,
+  TOKEN_PROGRAM_ADDRESS,
+} from "@solana-program/token";
 import {
   DEVNET_USDC_MINT_ADDRESS,
   deriveBattleAddresses,
@@ -53,16 +58,16 @@ async function getUsdcBalance(owner: Address): Promise<{ account: Address; amoun
   }
 }
 
-async function sendInstruction(
+async function sendInstructions(
   feePayer: TransactionSigner,
-  instruction: Instruction & InstructionWithSigners,
+  instructions: Array<Instruction & InstructionWithSigners>,
 ) {
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
   const message = pipe(
     createTransactionMessage({ version: 0 }),
     (transactionMessage) => setTransactionMessageFeePayerSigner(feePayer, transactionMessage),
     (transactionMessage) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, transactionMessage),
-    (transactionMessage) => appendTransactionMessageInstructions([instruction], transactionMessage),
+    (transactionMessage) => appendTransactionMessageInstructions(instructions, transactionMessage),
   );
   const transaction = await signTransactionMessageWithSigners(message);
   await sendAndConfirmTransactionFactory({
@@ -72,18 +77,66 @@ async function sendInstruction(
   return getSignatureFromTransaction(transaction);
 }
 
+async function redistributeUsdc(
+  donor: TransactionSigner,
+  recipient: TransactionSigner,
+  amount: bigint,
+) {
+  const [source, destination] = await Promise.all([
+    getUsdcAccount(donor.address),
+    getUsdcAccount(recipient.address),
+  ]);
+  return sendInstructions(donor, [
+    await getCreateAssociatedTokenIdempotentInstructionAsync({
+      payer: donor,
+      ata: destination,
+      owner: recipient.address,
+      mint: DEVNET_USDC_MINT_ADDRESS,
+      tokenProgram: TOKEN_PROGRAM_ADDRESS,
+    }),
+    getTransferCheckedInstruction({
+      source,
+      mint: DEVNET_USDC_MINT_ADDRESS,
+      destination,
+      authority: donor,
+      amount,
+      decimals: 6,
+    }),
+  ]);
+}
+
 async function main() {
   const [playerA, playerB] = await Promise.all([
     readSigner(".anchor/devnet-player-a.json"),
     readSigner(".anchor/devnet-player-b.json"),
   ]);
-  const [balanceA, balanceB] = await Promise.all([
+  let [balanceA, balanceB] = await Promise.all([
     getUsdcBalance(playerA.address),
     getUsdcBalance(playerB.address),
   ]);
 
   console.log(`Player A: ${playerA.address} (${Number(balanceA.amount) / 1_000_000} USDC)`);
   console.log(`Player B: ${playerB.address} (${Number(balanceB.amount) / 1_000_000} USDC)`);
+
+  const redistributionAmount = STAKE_MICRO_USDC * 2n;
+  if (balanceA.amount < STAKE_MICRO_USDC && balanceB.amount >= redistributionAmount + STAKE_MICRO_USDC) {
+    const signature = await redistributeUsdc(playerB, playerA, redistributionAmount);
+    console.log(`Redistributed 10 USDC from B to A: ${signature}`);
+    [balanceA, balanceB] = await Promise.all([
+      getUsdcBalance(playerA.address),
+      getUsdcBalance(playerB.address),
+    ]);
+  } else if (
+    balanceB.amount < STAKE_MICRO_USDC &&
+    balanceA.amount >= redistributionAmount + STAKE_MICRO_USDC
+  ) {
+    const signature = await redistributeUsdc(playerA, playerB, redistributionAmount);
+    console.log(`Redistributed 10 USDC from A to B: ${signature}`);
+    [balanceA, balanceB] = await Promise.all([
+      getUsdcBalance(playerA.address),
+      getUsdcBalance(playerB.address),
+    ]);
+  }
 
   if (balanceA.amount < STAKE_MICRO_USDC || balanceB.amount < STAKE_MICRO_USDC) {
     console.log("\nSmoke test is ready but both players need at least 5 Circle devnet USDC.");
@@ -98,9 +151,9 @@ async function main() {
   ).join("");
   const { battle } = await deriveBattleAddresses(battleId);
 
-  const createSignature = await sendInstruction(
+  const createSignature = await sendInstructions(
     playerA,
-    await getCreateBattleInstruction({
+    [await getCreateBattleInstruction({
       arena: "meme",
       battleId,
       challenger: playerA,
@@ -108,13 +161,13 @@ async function main() {
       settlementFeeBps: 200,
       stakeMicroUsdc: STAKE_MICRO_USDC,
       tradingLockSeconds: 300n,
-    }),
+    })],
   );
   console.log(`Create signature: ${createSignature}`);
 
-  const joinSignature = await sendInstruction(
+  const joinSignature = await sendInstructions(
     playerB,
-    await getJoinBattleInstruction({ battleId, opponent: playerB }),
+    [await getJoinBattleInstruction({ battleId, opponent: playerB })],
   );
   console.log(`Join signature: ${joinSignature}`);
   console.log(`Battle ID: ${battleId}`);
