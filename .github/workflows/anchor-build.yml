@@ -51,6 +51,8 @@ jobs:
               tail -n 160 anchor-build.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
+            annotation=$(tail -n 120 anchor-build.log | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::error title=Anchor build failure::$annotation"
           fi
           exit "$build_status"
 
