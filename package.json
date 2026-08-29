@@ -14,13 +14,18 @@
     "check": "npm run test && npm run typecheck && npm run build",
     "program:keygen": "node scripts/generate-program-keypair.mjs",
     "deployer:keygen": "node scripts/generate-devnet-deployer.mjs",
-    "devnet:status": "node scripts/check-devnet-readiness.mjs"
+    "devnet:status": "node scripts/check-devnet-readiness.mjs",
+    "devnet:smoke": "node --import tsx scripts/smoke-devnet.ts",
+    "players:keygen": "node scripts/generate-devnet-players.mjs",
+    "players:fund": "node scripts/fund-devnet-players.mjs"
   },
   "engines": {
     "node": ">=24.0.0",
     "npm": ">=11.0.0"
   },
   "devDependencies": {
-    "@solana/kit": "^8.2.0"
+    "@solana-program/token": "^0.16.0",
+    "@solana/kit": "^8.2.0",
+    "tsx": "^4.23.12"
   }
 }

@@ -25,7 +25,7 @@ export function BattleConsole() {
   const client = useClient<PvpTradeClient>();
   const connected = useConnectedWallet(client);
   const [mode, setMode] = useState<ConsoleMode>("create");
-  const [stake, setStake] = useState("25");
+  const [stake, setStake] = useState("5");
   const [arena, setArena] = useState<BattleArena>("safe");
   const [battleId, setBattleId] = useState("");
   const [deployment, setDeployment] = useState<DeploymentStatus>("checking");

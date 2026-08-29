@@ -50,6 +50,16 @@ npm run deployer:keygen
 npm run devnet:status
 ```
 
+Prepare two ignored test players, fund their transaction fees, and run a live Circle devnet USDC Create/Join smoke test:
+
+```powershell
+npm run players:keygen
+npm run players:fund
+npm run devnet:smoke
+```
+
+The smoke command prints both public wallet addresses when they still need Circle devnet USDC. Fund each address from Circle's faucet, then run the same command again. It creates a unique 5 USDC battle and joins it with the second player.
+
 Both private keypairs stay under the ignored `.anchor/` directory. Back them up securely before devnet deployment; only their public addresses belong in Git. Devnet deployment is a manual GitHub Actions workflow protected by the `devnet` environment and requires `DEVNET_DEPLOYER_KEYPAIR` plus `PVP_TRADE_PROGRAM_KEYPAIR` environment secrets.
 
 The Anchor build is intentionally handled by cloud CI because Anchor's supported local Windows setup requires WSL. Contributors using this repository do not need to open a Linux terminal.
