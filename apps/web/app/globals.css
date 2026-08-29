@@ -497,6 +497,31 @@ h1 span {
   border-right: 1px solid var(--line);
 }
 
+.consoleModes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 34px;
+}
+
+.consoleModes button {
+  padding: 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.consoleModes button.selected {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
 .formRow label,
 .battleForm legend {
   display: block;
@@ -538,6 +563,29 @@ h1 span {
   margin-top: 9px;
   color: var(--muted);
   font-size: 11px;
+}
+
+.joinBattleField {
+  margin-bottom: 34px;
+}
+
+.battleIdInput {
+  width: 100%;
+  padding: 16px 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  outline: 0;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+}
+
+.transactionError {
+  margin: 14px 0 0;
+  color: #b5311f;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .battleForm fieldset {
@@ -676,6 +724,16 @@ h1 span {
 
 .preparedBattle p {
   margin: 0;
+}
+
+.preparedBattle a {
+  color: var(--acid);
+}
+
+.preparedBattle .battleIdFull {
+  overflow-wrap: anywhere;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
 }
 
 .sectionHeading {

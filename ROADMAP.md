@@ -13,10 +13,12 @@
 - Altı ondalıklı settlement mint protokol yapılandırmasına sabitlendi.
 - Kurucu ve rakip stake'leri ayrı, self-authorised PDA token vault'larına yatırılıyor.
 - Açık battle iptalinde kurucu stake'i PDA imzasıyla iade ediliyor.
-- Web uygulamasında Solana Wallet Standard devnet bağlantısı ve battle hazırlama konsolu hazır.
+- Web uygulamasında Solana Wallet Standard devnet bağlantısı ile gerçek Create/Join instruction üretimi hazır.
 - Kalıcı public program ID atandı; özel deployment keypair yalnızca yerel ve Git-ignore kapsamındaki `.anchor` klasöründe tutuluyor.
 - LiteSVM custody entegrasyon testleri eşit deposit, ayrı vault, iptal iadesi, yanlış mint ve yetersiz bakiye senaryolarını kapsıyor.
-- Sıradaki kritik iş: kontrollü devnet deployment ve web transaction submission.
+- Manuel ve environment-secret korumalı devnet deployment workflow'u programı deploy edip protocol PDA'sını Circle devnet USDC ile initialize edecek şekilde hazır.
+- Güncel dış engel: devnet deployer cüzdanı faucet rate-limit nedeniyle henüz fonlanmadı; program bu nedenle henüz deploy edilmedi.
+- Sıradaki kritik iş: deployer'a devnet SOL sağlamak, deployment workflow'unu çalıştırmak ve iki cüzdanla canlı Create/Join smoke testi yapmak.
 
 ## 1. Ürün vizyonu
 

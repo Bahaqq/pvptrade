@@ -43,7 +43,14 @@ Create or inspect the local deployment keypair without overwriting an existing k
 npm run program:keygen
 ```
 
-The private program keypair stays under the ignored `.anchor/` directory. Back it up securely before devnet deployment; only the public program address belongs in Git.
+Create the ignored devnet upgrade-authority wallet and inspect deployment readiness:
+
+```powershell
+npm run deployer:keygen
+npm run devnet:status
+```
+
+Both private keypairs stay under the ignored `.anchor/` directory. Back them up securely before devnet deployment; only their public addresses belong in Git. Devnet deployment is a manual GitHub Actions workflow protected by the `devnet` environment and requires `DEVNET_DEPLOYER_KEYPAIR` plus `PVP_TRADE_PROGRAM_KEYPAIR` environment secrets.
 
 The Anchor build is intentionally handled by cloud CI because Anchor's supported local Windows setup requires WSL. Contributors using this repository do not need to open a Linux terminal.
 
@@ -54,7 +61,7 @@ The Anchor build is intentionally handled by cloud CI because Anchor's supported
 - Open-battle cancellation returns the challenger's locked stake through a PDA-signed transfer.
 - LiteSVM integration tests exercise real SPL Token CPI custody flows in cloud CI.
 - Jupiter CPI, settlement payouts and prize claims are not implemented yet.
-- The web app connects Wallet Standard wallets on devnet, but live battle transactions remain gated until deployment.
+- The web app builds real Wallet Standard Create/Join transactions using Circle devnet USDC, deterministic battle PDAs and isolated player vaults. Submission remains automatically gated until the program is executable on devnet.
 - Do not deploy the current program with real funds.
 - Mainnet deployment requires completed threat modelling, independent audit, and explicit release approval.
 

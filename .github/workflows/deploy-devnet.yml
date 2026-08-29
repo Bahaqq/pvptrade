@@ -1,0 +1,70 @@
+name: Deploy program to devnet
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pvp-trade-devnet-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: devnet
+    container:
+      image: solanafoundation/anchor:v1.0.2
+    env:
+      DEVNET_DEPLOYER_KEYPAIR: ${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}
+      PVP_TRADE_PROGRAM_KEYPAIR: ${{ secrets.PVP_TRADE_PROGRAM_KEYPAIR }}
+      SOLANA_RPC_URL: https://api.devnet.solana.com
+      SOLANA_WS_URL: wss://api.devnet.solana.com
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Require deployment secrets
+        shell: bash
+        run: |
+          test -n "$DEVNET_DEPLOYER_KEYPAIR"
+          test -n "$PVP_TRADE_PROGRAM_KEYPAIR"
+
+      - name: Restore deployment keypairs
+        shell: bash
+        run: |
+          mkdir -p .anchor
+          printf '%s' "$DEVNET_DEPLOYER_KEYPAIR" > .anchor/devnet-deployer.json
+          printf '%s' "$PVP_TRADE_PROGRAM_KEYPAIR" > .anchor/pvp_trade-program-keypair.json
+          chmod 600 .anchor/devnet-deployer.json .anchor/pvp_trade-program-keypair.json
+
+      - name: Verify permanent program address
+        shell: bash
+        run: |
+          test "$(solana-keygen pubkey .anchor/pvp_trade-program-keypair.json)" = "2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF"
+
+      - name: Show deployer balance
+        run: solana balance --url "$SOLANA_RPC_URL" --keypair .anchor/devnet-deployer.json
+
+      - name: Build program
+        run: |
+          rustup default stable
+          anchor build --ignore-keys
+
+      - name: Deploy program
+        run: >-
+          solana program deploy target/deploy/pvp_trade.so
+          --url "$SOLANA_RPC_URL"
+          --keypair .anchor/devnet-deployer.json
+          --program-id .anchor/pvp_trade-program-keypair.json
+          --max-sign-attempts 10
+
+      - name: Initialize protocol config
+        run: |
+          npm ci
+          DEVNET_DEPLOYER_PATH=.anchor/devnet-deployer.json node scripts/initialize-devnet-protocol.mjs
+
+      - name: Verify executable program
+        run: solana program show 2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF --url "$SOLANA_RPC_URL"
