@@ -35,5 +35,8 @@ jobs:
       - name: Show pinned toolchain
         run: anchor --version
 
+      - name: Configure Rust toolchain
+        run: rustup default stable
+
       - name: Build program
         run: anchor build --ignore-keys
