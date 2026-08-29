@@ -1,9 +1,15 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{
+    instruction::{AccountMeta, Instruction},
+    program::invoke_signed,
+};
 use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
 declare_id!("2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF");
 
 const MAX_PROTOCOL_FEE_BPS: u16 = 1_000;
+const MAX_SWAP_SLIPPAGE_BPS: u16 = 2_000;
+const MAX_ROUTE_DATA_BYTES: usize = 1_024;
 
 #[program]
 pub mod pvp_trade {
@@ -31,6 +37,37 @@ pub mod pvp_trade {
         config.paused = false;
         config.bump = ctx.bumps.protocol_config;
 
+        Ok(())
+    }
+
+    pub fn initialize_swap_config(
+        ctx: Context<InitializeSwapConfig>,
+        max_slippage_bps: u16,
+    ) -> Result<()> {
+        require!(
+            max_slippage_bps > 0 && max_slippage_bps <= MAX_SWAP_SLIPPAGE_BPS,
+            PvpTradeError::InvalidSlippage
+        );
+
+        let config = &mut ctx.accounts.swap_config;
+        config.approved_swap_program = ctx.accounts.swap_program.key();
+        config.max_slippage_bps = max_slippage_bps;
+        config.bump = ctx.bumps.swap_config;
+        Ok(())
+    }
+
+    pub fn create_token_policy(
+        ctx: Context<CreateTokenPolicy>,
+        safe_enabled: bool,
+        meme_enabled: bool,
+    ) -> Result<()> {
+        require!(safe_enabled || meme_enabled, PvpTradeError::TokenNotAllowed);
+
+        let policy = &mut ctx.accounts.token_policy;
+        policy.mint = ctx.accounts.mint.key();
+        policy.safe_enabled = safe_enabled;
+        policy.meme_enabled = meme_enabled;
+        policy.bump = ctx.bumps.token_policy;
         Ok(())
     }
 
@@ -178,6 +215,143 @@ pub mod pvp_trade {
         Ok(())
     }
 
+    pub fn create_asset_vault(ctx: Context<CreateAssetVault>) -> Result<()> {
+        validate_active_trader(
+            &ctx.accounts.battle,
+            &ctx.accounts.actor.key(),
+            Clock::get()?.unix_timestamp,
+        )?;
+        require!(
+            ctx.accounts.token_policy.allows(ctx.accounts.battle.arena),
+            PvpTradeError::TokenNotAllowed
+        );
+        require!(
+            ctx.accounts.mint.key() != ctx.accounts.battle.settlement_mint,
+            PvpTradeError::InvalidSwapMint
+        );
+        Ok(())
+    }
+
+    pub fn execute_swap<'info>(
+        ctx: Context<'_, '_, '_, 'info, ExecuteSwap<'info>>,
+        amount_in: u64,
+        minimum_amount_out: u64,
+        quoted_amount_out: u64,
+        slippage_bps: u16,
+        route_data: Vec<u8>,
+    ) -> Result<()> {
+        require!(amount_in > 0 && minimum_amount_out > 0, PvpTradeError::InvalidSwapAmount);
+        require!(
+            quoted_amount_out >= minimum_amount_out,
+            PvpTradeError::InvalidMinimumOutput
+        );
+        require!(
+            slippage_bps <= ctx.accounts.swap_config.max_slippage_bps,
+            PvpTradeError::InvalidSlippage
+        );
+        require!(
+            route_data.len() <= MAX_ROUTE_DATA_BYTES,
+            PvpTradeError::RouteDataTooLarge
+        );
+
+        let battle = &ctx.accounts.battle;
+        let actor = ctx.accounts.actor.key();
+        validate_active_trader(battle, &actor, Clock::get()?.unix_timestamp)?;
+        require!(
+            ctx.accounts.input_policy.allows(battle.arena)
+                && ctx.accounts.output_policy.allows(battle.arena),
+            PvpTradeError::TokenNotAllowed
+        );
+        require!(
+            ctx.accounts.input_mint.key() != ctx.accounts.output_mint.key(),
+            PvpTradeError::InvalidSwapMint
+        );
+
+        let input_mint = ctx.accounts.input_mint.key();
+        let output_mint = ctx.accounts.output_mint.key();
+        let battle_key = battle.key();
+        let (expected_input, input_bump) = expected_player_vault(battle, &battle_key, &actor, &input_mint);
+        let (expected_output, _) = expected_player_vault(battle, &battle_key, &actor, &output_mint);
+        require_keys_eq!(ctx.accounts.input_vault.key(), expected_input, PvpTradeError::InvalidInputVault);
+        require_keys_eq!(ctx.accounts.output_vault.key(), expected_output, PvpTradeError::InvalidOutputVault);
+        require!(
+            ctx.accounts.input_vault.amount >= amount_in,
+            PvpTradeError::InsufficientVaultBalance
+        );
+
+        let route_has_input = ctx
+            .remaining_accounts
+            .iter()
+            .any(|account| account.key() == ctx.accounts.input_vault.key());
+        let route_has_output = ctx
+            .remaining_accounts
+            .iter()
+            .any(|account| account.key() == ctx.accounts.output_vault.key());
+        require!(route_has_input && route_has_output, PvpTradeError::InvalidRouteAccounts);
+        require!(
+            ctx.remaining_accounts.iter().all(|account| !account.is_signer),
+            PvpTradeError::UnexpectedRouteSigner
+        );
+
+        let input_before = ctx.accounts.input_vault.amount;
+        let output_before = ctx.accounts.output_vault.amount;
+        let input_key = ctx.accounts.input_vault.key();
+        let metas = ctx
+            .remaining_accounts
+            .iter()
+            .map(|account| {
+                if account.is_writable {
+                    AccountMeta::new(*account.key, account.key() == input_key)
+                } else {
+                    AccountMeta::new_readonly(*account.key, account.key() == input_key)
+                }
+            })
+            .collect();
+        let account_infos = ctx.remaining_accounts.to_vec();
+        let instruction = Instruction {
+            program_id: ctx.accounts.swap_program.key(),
+            accounts: metas,
+            data: route_data,
+        };
+        let input_bump_seed = [input_bump];
+        let signer_seeds: &[&[u8]] = if input_mint == battle.settlement_mint {
+            &[b"vault", battle_key.as_ref(), actor.as_ref(), &input_bump_seed]
+        } else {
+            &[
+                b"asset_vault",
+                battle_key.as_ref(),
+                actor.as_ref(),
+                input_mint.as_ref(),
+                &input_bump_seed,
+            ]
+        };
+        invoke_signed(&instruction, &account_infos, &[signer_seeds])?;
+
+        ctx.accounts.input_vault.reload()?;
+        ctx.accounts.output_vault.reload()?;
+        let spent = input_before
+            .checked_sub(ctx.accounts.input_vault.amount)
+            .ok_or(PvpTradeError::InvalidSwapDebit)?;
+        let received = ctx
+            .accounts
+            .output_vault
+            .amount
+            .checked_sub(output_before)
+            .ok_or(PvpTradeError::InvalidSwapCredit)?;
+        require!(spent == amount_in, PvpTradeError::InvalidSwapDebit);
+        require!(received >= minimum_amount_out, PvpTradeError::MinimumOutputNotMet);
+
+        emit!(SwapExecuted {
+            battle: battle_key,
+            actor,
+            input_mint,
+            output_mint,
+            amount_in: spent,
+            amount_out: received,
+        });
+        Ok(())
+    }
+
     pub fn lock_trading(ctx: Context<AdvanceBattle>) -> Result<()> {
         let battle = &mut ctx.accounts.battle;
         require!(battle.status == BattleStatus::Active, PvpTradeError::InvalidStatus);
@@ -275,6 +449,41 @@ pub mod pvp_trade {
     }
 }
 
+fn validate_active_trader(battle: &Account<Battle>, actor: &Pubkey, now: i64) -> Result<()> {
+    require!(battle.status == BattleStatus::Active, PvpTradeError::InvalidStatus);
+    require!(
+        *actor == battle.challenger || *actor == battle.opponent,
+        PvpTradeError::Unauthorized
+    );
+    require!(now < battle.trading_locks_at, PvpTradeError::TradingLocked);
+    Ok(())
+}
+
+fn expected_player_vault(
+    battle: &Battle,
+    battle_key: &Pubkey,
+    actor: &Pubkey,
+    mint: &Pubkey,
+) -> (Pubkey, u8) {
+    if *mint == battle.settlement_mint {
+        let (vault, bump) = Pubkey::find_program_address(
+            &[b"vault", battle_key.as_ref(), actor.as_ref()],
+            &crate::ID,
+        );
+        (vault, bump)
+    } else {
+        Pubkey::find_program_address(
+            &[
+                b"asset_vault",
+                battle_key.as_ref(),
+                actor.as_ref(),
+                mint.as_ref(),
+            ],
+            &crate::ID,
+        )
+    }
+}
+
 #[derive(Accounts)]
 pub struct InitializeProtocol<'info> {
     #[account(
@@ -287,6 +496,52 @@ pub struct InitializeProtocol<'info> {
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(constraint = settlement_mint.decimals == 6 @ PvpTradeError::InvalidSettlementMintDecimals)]
     pub settlement_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeSwapConfig<'info> {
+    #[account(
+        seeds = [b"protocol"],
+        bump = protocol_config.bump,
+        has_one = authority @ PvpTradeError::Unauthorized
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(
+        init,
+        payer = authority,
+        space = SwapConfig::SPACE,
+        seeds = [b"swap_config"],
+        bump
+    )]
+    pub swap_config: Account<'info, SwapConfig>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: Executability and the stored address constrain all future CPI calls.
+    #[account(executable)]
+    pub swap_program: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CreateTokenPolicy<'info> {
+    #[account(
+        seeds = [b"protocol"],
+        bump = protocol_config.bump,
+        has_one = authority @ PvpTradeError::Unauthorized
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(
+        init,
+        payer = authority,
+        space = TokenPolicy::SPACE,
+        seeds = [b"token_policy", mint.key().as_ref()],
+        bump
+    )]
+    pub token_policy: Account<'info, TokenPolicy>,
+    pub mint: Account<'info, Mint>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -367,6 +622,76 @@ pub struct BattleActor<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CreateAssetVault<'info> {
+    #[account(mut, seeds = [b"battle", battle.id.as_ref()], bump = battle.bump)]
+    pub battle: Account<'info, Battle>,
+    #[account(
+        seeds = [b"token_policy", mint.key().as_ref()],
+        bump = token_policy.bump,
+        has_one = mint @ PvpTradeError::InvalidSwapMint
+    )]
+    pub token_policy: Account<'info, TokenPolicy>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        init,
+        payer = actor,
+        seeds = [b"asset_vault", battle.key().as_ref(), actor.key().as_ref(), mint.key().as_ref()],
+        bump,
+        token::mint = mint,
+        token::authority = asset_vault
+    )]
+    pub asset_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub actor: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ExecuteSwap<'info> {
+    #[account(seeds = [b"protocol"], bump = protocol_config.bump)]
+    pub protocol_config: Account<'info, ProtocolConfig>,
+    #[account(
+        seeds = [b"swap_config"],
+        bump = swap_config.bump,
+        has_one = approved_swap_program @ PvpTradeError::InvalidSwapProgram
+    )]
+    pub swap_config: Account<'info, SwapConfig>,
+    #[account(mut, seeds = [b"battle", battle.id.as_ref()], bump = battle.bump)]
+    pub battle: Account<'info, Battle>,
+    #[account(
+        seeds = [b"token_policy", input_mint.key().as_ref()],
+        bump = input_policy.bump,
+        constraint = input_policy.mint == input_mint.key() @ PvpTradeError::InvalidSwapMint
+    )]
+    pub input_policy: Account<'info, TokenPolicy>,
+    #[account(
+        seeds = [b"token_policy", output_mint.key().as_ref()],
+        bump = output_policy.bump,
+        constraint = output_policy.mint == output_mint.key() @ PvpTradeError::InvalidSwapMint
+    )]
+    pub output_policy: Account<'info, TokenPolicy>,
+    pub input_mint: Account<'info, Mint>,
+    pub output_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        token::mint = input_mint,
+        token::authority = input_vault
+    )]
+    pub input_vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint = output_mint,
+        token::authority = output_vault
+    )]
+    pub output_vault: Account<'info, TokenAccount>,
+    pub actor: Signer<'info>,
+    /// CHECK: Its address is pinned by SwapConfig and it must remain executable.
+    #[account(address = approved_swap_program, executable)]
+    pub approved_swap_program: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
 pub struct AdvanceBattle<'info> {
     #[account(mut, seeds = [b"battle", battle.id.as_ref()], bump = battle.bump)]
     pub battle: Account<'info, Battle>,
@@ -425,6 +750,36 @@ pub struct ProtocolConfig {
 
 impl ProtocolConfig {
     pub const SPACE: usize = 8 + 32 + 32 + 2 + 8 + 1 + 1;
+}
+
+#[account]
+pub struct SwapConfig {
+    pub approved_swap_program: Pubkey,
+    pub max_slippage_bps: u16,
+    pub bump: u8,
+}
+
+impl SwapConfig {
+    pub const SPACE: usize = 8 + 32 + 2 + 1;
+}
+
+#[account]
+pub struct TokenPolicy {
+    pub mint: Pubkey,
+    pub safe_enabled: bool,
+    pub meme_enabled: bool,
+    pub bump: u8,
+}
+
+impl TokenPolicy {
+    pub const SPACE: usize = 8 + 32 + 1 + 1 + 1;
+
+    pub fn allows(&self, arena: Arena) -> bool {
+        match arena {
+            Arena::Safe => self.safe_enabled,
+            Arena::Meme => self.meme_enabled,
+        }
+    }
 }
 
 #[account]
@@ -511,6 +866,16 @@ pub struct BattleResolved {
     pub is_draw: bool,
 }
 
+#[event]
+pub struct SwapExecuted {
+    pub battle: Pubkey,
+    pub actor: Pubkey,
+    pub input_mint: Pubkey,
+    pub output_mint: Pubkey,
+    pub amount_in: u64,
+    pub amount_out: u64,
+}
+
 #[error_code]
 pub enum PvpTradeError {
     #[msg("Protocol actions are paused.")]
@@ -539,4 +904,36 @@ pub enum PvpTradeError {
     InvalidSettlementMint,
     #[msg("Settlement mint must use six decimal places.")]
     InvalidSettlementMintDecimals,
+    #[msg("The configured swap slippage is outside the allowed range.")]
+    InvalidSlippage,
+    #[msg("The token is not enabled for this battle arena.")]
+    TokenNotAllowed,
+    #[msg("The swap mint pair is invalid.")]
+    InvalidSwapMint,
+    #[msg("Trading is locked for this battle.")]
+    TradingLocked,
+    #[msg("The swap amount must be positive.")]
+    InvalidSwapAmount,
+    #[msg("The minimum output exceeds the quoted output.")]
+    InvalidMinimumOutput,
+    #[msg("The router instruction data is too large.")]
+    RouteDataTooLarge,
+    #[msg("The configured swap program does not match.")]
+    InvalidSwapProgram,
+    #[msg("The input vault does not belong to this player and battle.")]
+    InvalidInputVault,
+    #[msg("The output vault does not belong to this player and battle.")]
+    InvalidOutputVault,
+    #[msg("The input vault does not contain enough tokens.")]
+    InsufficientVaultBalance,
+    #[msg("The route omits the required player vault accounts.")]
+    InvalidRouteAccounts,
+    #[msg("The route requested an unexpected transaction signer.")]
+    UnexpectedRouteSigner,
+    #[msg("The router did not debit the exact requested input amount.")]
+    InvalidSwapDebit,
+    #[msg("The router reduced the destination balance.")]
+    InvalidSwapCredit,
+    #[msg("The router returned less than the required minimum output.")]
+    MinimumOutputNotMet,
 }
