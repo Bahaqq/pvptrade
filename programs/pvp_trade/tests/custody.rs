@@ -1,7 +1,7 @@
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
 use litesvm::LiteSVM;
 use solana_account::Account;
-use solana_instruction::Instruction;
+use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_program_option::COption;
 use solana_program_pack::Pack;
@@ -14,12 +14,14 @@ const STARTING_BALANCE: u64 = 500_000_000;
 
 struct TestContext {
     svm: LiteSVM,
+    authority: Keypair,
     challenger: Keypair,
     opponent: Keypair,
     settlement_mint: solana_pubkey::Pubkey,
     challenger_source: solana_pubkey::Pubkey,
     opponent_source: solana_pubkey::Pubkey,
     protocol_config: solana_pubkey::Pubkey,
+    swap_config: solana_pubkey::Pubkey,
 }
 
 fn program_instruction(accounts: Vec<solana_instruction::AccountMeta>, data: Vec<u8>) -> Instruction {
@@ -95,6 +97,9 @@ fn setup() -> TestContext {
     let program_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/deploy/pvp_trade.so");
     svm.add_program_from_file(pvp_trade::ID, program_path).unwrap();
+    let mock_program_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/deploy/mock_swap.so");
+    svm.add_program_from_file(mock_swap::ID, mock_program_path).unwrap();
 
     let authority = Keypair::new();
     let challenger = Keypair::new();
@@ -146,15 +151,124 @@ fn setup() -> TestContext {
     );
     svm.send_transaction(transaction).unwrap();
 
+    let (swap_config, _) =
+        solana_pubkey::Pubkey::find_program_address(&[b"swap_config"], &pvp_trade::ID);
+    let initialize_swap = program_instruction(
+        pvp_trade::accounts::InitializeSwapConfig {
+            protocol_config,
+            swap_config,
+            authority: authority.pubkey(),
+            swap_program: mock_swap::ID,
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+        pvp_trade::instruction::InitializeSwapConfig {
+            max_slippage_bps: 500,
+        }
+        .data(),
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[initialize_swap],
+        Some(&authority.pubkey()),
+        &[&authority],
+        svm.latest_blockhash(),
+    );
+    svm.send_transaction(transaction).unwrap();
+
     TestContext {
         svm,
+        authority,
         challenger,
         opponent,
         settlement_mint,
         challenger_source,
         opponent_source,
         protocol_config,
+        swap_config,
     }
+}
+
+fn create_token_policy(
+    context: &mut TestContext,
+    mint: solana_pubkey::Pubkey,
+    safe_enabled: bool,
+    meme_enabled: bool,
+) -> solana_pubkey::Pubkey {
+    let (token_policy, _) = solana_pubkey::Pubkey::find_program_address(
+        &[b"token_policy", mint.as_ref()],
+        &pvp_trade::ID,
+    );
+    let instruction = program_instruction(
+        pvp_trade::accounts::CreateTokenPolicy {
+            protocol_config: context.protocol_config,
+            token_policy,
+            mint,
+            authority: context.authority.pubkey(),
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+        pvp_trade::instruction::CreateTokenPolicy {
+            safe_enabled,
+            meme_enabled,
+        }
+        .data(),
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.authority.pubkey()),
+        &[&context.authority],
+        context.svm.latest_blockhash(),
+    );
+    context.svm.send_transaction(transaction).unwrap();
+    token_policy
+}
+
+fn join_and_start(
+    context: &mut TestContext,
+    battle: solana_pubkey::Pubkey,
+) -> solana_pubkey::Pubkey {
+    let (opponent_vault, _) = solana_pubkey::Pubkey::find_program_address(
+        &[b"vault", battle.as_ref(), context.opponent.pubkey().as_ref()],
+        &pvp_trade::ID,
+    );
+    let join = program_instruction(
+        pvp_trade::accounts::JoinBattle {
+            protocol_config: context.protocol_config,
+            battle,
+            settlement_mint: context.settlement_mint,
+            opponent_source: context.opponent_source,
+            opponent_vault,
+            opponent: context.opponent.pubkey(),
+            token_program: spl_token_interface::ID,
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+        pvp_trade::instruction::JoinBattle {}.data(),
+    );
+    let start = program_instruction(
+        pvp_trade::accounts::BattleActor {
+            protocol_config: context.protocol_config,
+            battle,
+            actor: context.challenger.pubkey(),
+        }
+        .to_account_metas(None),
+        pvp_trade::instruction::StartBattle {}.data(),
+    );
+    let join_transaction = Transaction::new_signed_with_payer(
+        &[join],
+        Some(&context.opponent.pubkey()),
+        &[&context.opponent],
+        context.svm.latest_blockhash(),
+    );
+    context.svm.send_transaction(join_transaction).unwrap();
+    let start_transaction = Transaction::new_signed_with_payer(
+        &[start],
+        Some(&context.challenger.pubkey()),
+        &[&context.challenger],
+        context.svm.latest_blockhash(),
+    );
+    context.svm.send_transaction(start_transaction).unwrap();
+    opponent_vault
 }
 
 fn create_battle(
@@ -333,4 +447,189 @@ fn wrong_mint_and_insufficient_balance_are_rejected_atomically() {
     }));
     assert!(low_balance_result.is_err());
     assert!(context.svm.get_account(&battle).is_none());
+}
+
+struct SwapFixture {
+    battle: solana_pubkey::Pubkey,
+    challenger_vault: solana_pubkey::Pubkey,
+    asset_vault: solana_pubkey::Pubkey,
+    output_mint: solana_pubkey::Pubkey,
+    input_policy: solana_pubkey::Pubkey,
+    output_policy: solana_pubkey::Pubkey,
+    pool_input: solana_pubkey::Pubkey,
+    pool_output: solana_pubkey::Pubkey,
+    pool_authority: solana_pubkey::Pubkey,
+}
+
+fn setup_swap_fixture(context: &mut TestContext, battle_id: [u8; 32]) -> SwapFixture {
+    let output_mint = solana_pubkey::Pubkey::new_unique();
+    set_mint(&mut context.svm, output_mint, 6);
+    let settlement_mint = context.settlement_mint;
+    let input_policy = create_token_policy(context, settlement_mint, true, true);
+    let output_policy = create_token_policy(context, output_mint, true, true);
+    let challenger_source = context.challenger_source;
+    let (battle, challenger_vault) = create_battle(context, battle_id, challenger_source);
+    join_and_start(context, battle);
+
+    let (asset_vault, _) = solana_pubkey::Pubkey::find_program_address(
+        &[
+            b"asset_vault",
+            battle.as_ref(),
+            context.challenger.pubkey().as_ref(),
+            output_mint.as_ref(),
+        ],
+        &pvp_trade::ID,
+    );
+    let create_vault = program_instruction(
+        pvp_trade::accounts::CreateAssetVault {
+            battle,
+            token_policy: output_policy,
+            mint: output_mint,
+            asset_vault,
+            actor: context.challenger.pubkey(),
+            token_program: spl_token_interface::ID,
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+        pvp_trade::instruction::CreateAssetVault {}.data(),
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[create_vault],
+        Some(&context.challenger.pubkey()),
+        &[&context.challenger],
+        context.svm.latest_blockhash(),
+    );
+    context.svm.send_transaction(transaction).unwrap();
+
+    let (pool_authority, _) =
+        solana_pubkey::Pubkey::find_program_address(&[b"pool"], &mock_swap::ID);
+    let pool_input = solana_pubkey::Pubkey::new_unique();
+    let pool_output = solana_pubkey::Pubkey::new_unique();
+    set_token_account(
+        &mut context.svm,
+        pool_input,
+        context.settlement_mint,
+        pool_authority,
+        0,
+    );
+    set_token_account(
+        &mut context.svm,
+        pool_output,
+        output_mint,
+        pool_authority,
+        STARTING_BALANCE,
+    );
+
+    SwapFixture {
+        battle,
+        challenger_vault,
+        asset_vault,
+        output_mint,
+        input_policy,
+        output_policy,
+        pool_input,
+        pool_output,
+        pool_authority,
+    }
+}
+
+fn execute_swap_instruction(
+    context: &TestContext,
+    fixture: &SwapFixture,
+    route_destination: solana_pubkey::Pubkey,
+) -> Instruction {
+    const AMOUNT_IN: u64 = 20_000_000;
+    const AMOUNT_OUT: u64 = 40_000_000;
+    let mut accounts = pvp_trade::accounts::ExecuteSwap {
+        protocol_config: context.protocol_config,
+        swap_config: context.swap_config,
+        battle: fixture.battle,
+        input_policy: fixture.input_policy,
+        output_policy: fixture.output_policy,
+        input_mint: context.settlement_mint,
+        output_mint: fixture.output_mint,
+        input_vault: fixture.challenger_vault,
+        output_vault: fixture.asset_vault,
+        actor: context.challenger.pubkey(),
+        approved_swap_program: mock_swap::ID,
+    }
+    .to_account_metas(None);
+    accounts.extend([
+        AccountMeta::new(fixture.challenger_vault, false),
+        AccountMeta::new(route_destination, false),
+        AccountMeta::new(fixture.pool_input, false),
+        AccountMeta::new(fixture.pool_output, false),
+        AccountMeta::new_readonly(context.settlement_mint, false),
+        AccountMeta::new_readonly(fixture.output_mint, false),
+        AccountMeta::new_readonly(fixture.challenger_vault, false),
+        AccountMeta::new_readonly(fixture.pool_authority, false),
+        AccountMeta::new_readonly(spl_token_interface::ID, false),
+    ]);
+    if route_destination != fixture.asset_vault {
+        accounts.push(AccountMeta::new_readonly(fixture.asset_vault, false));
+    }
+    program_instruction(
+        accounts,
+        pvp_trade::instruction::ExecuteSwap {
+            amount_in: AMOUNT_IN,
+            minimum_amount_out: 39_000_000,
+            quoted_amount_out: AMOUNT_OUT,
+            slippage_bps: 250,
+            route_data: mock_swap::instruction::Swap {
+                amount_in: AMOUNT_IN,
+                amount_out: AMOUNT_OUT,
+            }
+            .data(),
+        }
+        .data(),
+    )
+}
+
+#[test]
+fn approved_swap_moves_exact_input_into_the_players_asset_vault() {
+    let mut context = setup();
+    let fixture = setup_swap_fixture(&mut context, [11; 32]);
+    let swap = execute_swap_instruction(&context, &fixture, fixture.asset_vault);
+    let transaction = Transaction::new_signed_with_payer(
+        &[swap],
+        Some(&context.challenger.pubkey()),
+        &[&context.challenger],
+        context.svm.latest_blockhash(),
+    );
+    context.svm.send_transaction(transaction).unwrap();
+
+    assert_eq!(token_balance(&context.svm, fixture.challenger_vault), STAKE - 20_000_000);
+    assert_eq!(token_balance(&context.svm, fixture.asset_vault), 40_000_000);
+    assert_eq!(token_balance(&context.svm, fixture.pool_input), 20_000_000);
+    assert_eq!(token_balance(&context.svm, fixture.pool_output), STARTING_BALANCE - 40_000_000);
+}
+
+#[test]
+fn route_cannot_redirect_swap_output_to_an_attacker() {
+    let mut context = setup();
+    let fixture = setup_swap_fixture(&mut context, [12; 32]);
+    let attacker = Keypair::new();
+    let attacker_destination = solana_pubkey::Pubkey::new_unique();
+    set_token_account(
+        &mut context.svm,
+        attacker_destination,
+        fixture.output_mint,
+        attacker.pubkey(),
+        0,
+    );
+    let swap = execute_swap_instruction(&context, &fixture, attacker_destination);
+    let transaction = Transaction::new_signed_with_payer(
+        &[swap],
+        Some(&context.challenger.pubkey()),
+        &[&context.challenger],
+        context.svm.latest_blockhash(),
+    );
+    let result = context.svm.send_transaction(transaction);
+
+    assert!(result.is_err());
+    assert_eq!(token_balance(&context.svm, fixture.challenger_vault), STAKE);
+    assert_eq!(token_balance(&context.svm, fixture.asset_vault), 0);
+    assert_eq!(token_balance(&context.svm, attacker_destination), 0);
+    assert_eq!(token_balance(&context.svm, fixture.pool_input), 0);
+    assert_eq!(token_balance(&context.svm, fixture.pool_output), STARTING_BALANCE);
 }
