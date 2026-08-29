@@ -73,7 +73,7 @@ jobs:
           cargo test -p pvp_trade --test custody -- --nocapture 2>&1 | tee custody-test.log
           test_status=${PIPESTATUS[0]}
           if [ "$test_status" -ne 0 ]; then
-            failure_context=$(tail -n 180 custody-test.log)
+            failure_context=$(awk '/^running [0-9]+ tests/{capture=1} capture' custody-test.log | tail -n 180)
             annotation=$(printf '%s\n' "$failure_context" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN{ORS="%0A"} {print}')
             echo "::error title=Custody test failure::$annotation"
           fi
