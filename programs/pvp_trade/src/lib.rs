@@ -146,8 +146,14 @@ pub mod pvp_trade {
 
     pub fn join_battle(ctx: Context<JoinBattle>) -> Result<()> {
         let battle = &mut ctx.accounts.battle;
-        require!(!ctx.accounts.protocol_config.paused, PvpTradeError::ProtocolPaused);
-        require!(battle.status == BattleStatus::Open, PvpTradeError::InvalidStatus);
+        require!(
+            !ctx.accounts.protocol_config.paused,
+            PvpTradeError::ProtocolPaused
+        );
+        require!(
+            battle.status == BattleStatus::Open,
+            PvpTradeError::InvalidStatus
+        );
         require!(
             ctx.accounts.opponent.key() != battle.challenger,
             PvpTradeError::SelfMatch
@@ -184,8 +190,14 @@ pub mod pvp_trade {
 
     pub fn start_battle(ctx: Context<BattleActor>) -> Result<()> {
         let battle = &mut ctx.accounts.battle;
-        require!(!ctx.accounts.protocol_config.paused, PvpTradeError::ProtocolPaused);
-        require!(battle.status == BattleStatus::Funded, PvpTradeError::InvalidStatus);
+        require!(
+            !ctx.accounts.protocol_config.paused,
+            PvpTradeError::ProtocolPaused
+        );
+        require!(
+            battle.status == BattleStatus::Funded,
+            PvpTradeError::InvalidStatus
+        );
         require!(
             ctx.accounts.actor.key() == battle.challenger
                 || ctx.accounts.actor.key() == battle.opponent,
@@ -233,14 +245,17 @@ pub mod pvp_trade {
     }
 
     pub fn execute_swap<'info>(
-        ctx: Context<'_, '_, '_, 'info, ExecuteSwap<'info>>,
+        ctx: Context<'info, ExecuteSwap<'info>>,
         amount_in: u64,
         minimum_amount_out: u64,
         quoted_amount_out: u64,
         slippage_bps: u16,
         route_data: Vec<u8>,
     ) -> Result<()> {
-        require!(amount_in > 0 && minimum_amount_out > 0, PvpTradeError::InvalidSwapAmount);
+        require!(
+            amount_in > 0 && minimum_amount_out > 0,
+            PvpTradeError::InvalidSwapAmount
+        );
         require!(
             quoted_amount_out >= minimum_amount_out,
             PvpTradeError::InvalidMinimumOutput
@@ -270,10 +285,19 @@ pub mod pvp_trade {
         let input_mint = ctx.accounts.input_mint.key();
         let output_mint = ctx.accounts.output_mint.key();
         let battle_key = battle.key();
-        let (expected_input, input_bump) = expected_player_vault(battle, &battle_key, &actor, &input_mint);
+        let (expected_input, input_bump) =
+            expected_player_vault(battle, &battle_key, &actor, &input_mint);
         let (expected_output, _) = expected_player_vault(battle, &battle_key, &actor, &output_mint);
-        require_keys_eq!(ctx.accounts.input_vault.key(), expected_input, PvpTradeError::InvalidInputVault);
-        require_keys_eq!(ctx.accounts.output_vault.key(), expected_output, PvpTradeError::InvalidOutputVault);
+        require_keys_eq!(
+            ctx.accounts.input_vault.key(),
+            expected_input,
+            PvpTradeError::InvalidInputVault
+        );
+        require_keys_eq!(
+            ctx.accounts.output_vault.key(),
+            expected_output,
+            PvpTradeError::InvalidOutputVault
+        );
         require!(
             ctx.accounts.input_vault.amount >= amount_in,
             PvpTradeError::InsufficientVaultBalance
@@ -287,9 +311,14 @@ pub mod pvp_trade {
             .remaining_accounts
             .iter()
             .any(|account| account.key() == ctx.accounts.output_vault.key());
-        require!(route_has_input && route_has_output, PvpTradeError::InvalidRouteAccounts);
         require!(
-            ctx.remaining_accounts.iter().all(|account| !account.is_signer),
+            route_has_input && route_has_output,
+            PvpTradeError::InvalidRouteAccounts
+        );
+        require!(
+            ctx.remaining_accounts
+                .iter()
+                .all(|account| !account.is_signer),
             PvpTradeError::UnexpectedRouteSigner
         );
 
@@ -315,7 +344,12 @@ pub mod pvp_trade {
         };
         let input_bump_seed = [input_bump];
         let signer_seeds: &[&[u8]] = if input_mint == battle.settlement_mint {
-            &[b"vault", battle_key.as_ref(), actor.as_ref(), &input_bump_seed]
+            &[
+                b"vault",
+                battle_key.as_ref(),
+                actor.as_ref(),
+                &input_bump_seed,
+            ]
         } else {
             &[
                 b"asset_vault",
@@ -339,7 +373,10 @@ pub mod pvp_trade {
             .checked_sub(output_before)
             .ok_or(PvpTradeError::InvalidSwapCredit)?;
         require!(spent == amount_in, PvpTradeError::InvalidSwapDebit);
-        require!(received >= minimum_amount_out, PvpTradeError::MinimumOutputNotMet);
+        require!(
+            received >= minimum_amount_out,
+            PvpTradeError::MinimumOutputNotMet
+        );
 
         emit!(SwapExecuted {
             battle: battle_key,
@@ -354,7 +391,10 @@ pub mod pvp_trade {
 
     pub fn lock_trading(ctx: Context<AdvanceBattle>) -> Result<()> {
         let battle = &mut ctx.accounts.battle;
-        require!(battle.status == BattleStatus::Active, PvpTradeError::InvalidStatus);
+        require!(
+            battle.status == BattleStatus::Active,
+            PvpTradeError::InvalidStatus
+        );
         require!(
             Clock::get()?.unix_timestamp >= battle.trading_locks_at,
             PvpTradeError::TradingStillActive
@@ -387,7 +427,10 @@ pub mod pvp_trade {
         player_b_final_micro_usdc: u64,
     ) -> Result<()> {
         let battle = &mut ctx.accounts.battle;
-        require!(battle.status == BattleStatus::Settling, PvpTradeError::InvalidStatus);
+        require!(
+            battle.status == BattleStatus::Settling,
+            PvpTradeError::InvalidStatus
+        );
 
         battle.player_a_final_micro_usdc = player_a_final_micro_usdc;
         battle.player_b_final_micro_usdc = player_b_final_micro_usdc;
@@ -450,7 +493,10 @@ pub mod pvp_trade {
 }
 
 fn validate_active_trader(battle: &Account<Battle>, actor: &Pubkey, now: i64) -> Result<()> {
-    require!(battle.status == BattleStatus::Active, PvpTradeError::InvalidStatus);
+    require!(
+        battle.status == BattleStatus::Active,
+        PvpTradeError::InvalidStatus
+    );
     require!(
         *actor == battle.challenger || *actor == battle.opponent,
         PvpTradeError::Unauthorized
@@ -653,8 +699,7 @@ pub struct ExecuteSwap<'info> {
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(
         seeds = [b"swap_config"],
-        bump = swap_config.bump,
-        has_one = approved_swap_program @ PvpTradeError::InvalidSwapProgram
+        bump = swap_config.bump
     )]
     pub swap_config: Account<'info, SwapConfig>,
     #[account(mut, seeds = [b"battle", battle.id.as_ref()], bump = battle.bump)]
@@ -687,8 +732,11 @@ pub struct ExecuteSwap<'info> {
     pub output_vault: Account<'info, TokenAccount>,
     pub actor: Signer<'info>,
     /// CHECK: Its address is pinned by SwapConfig and it must remain executable.
-    #[account(address = approved_swap_program, executable)]
-    pub approved_swap_program: UncheckedAccount<'info>,
+    #[account(
+        address = swap_config.approved_swap_program @ PvpTradeError::InvalidSwapProgram,
+        executable
+    )]
+    pub swap_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

@@ -24,7 +24,10 @@ struct TestContext {
     swap_config: solana_pubkey::Pubkey,
 }
 
-fn program_instruction(accounts: Vec<solana_instruction::AccountMeta>, data: Vec<u8>) -> Instruction {
+fn program_instruction(
+    accounts: Vec<solana_instruction::AccountMeta>,
+    data: Vec<u8>,
+) -> Instruction {
     Instruction {
         program_id: pvp_trade::ID,
         accounts,
@@ -94,12 +97,14 @@ fn token_balance(svm: &LiteSVM, address: solana_pubkey::Pubkey) -> u64 {
 
 fn setup() -> TestContext {
     let mut svm = LiteSVM::new();
-    let program_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../target/deploy/pvp_trade.so");
-    svm.add_program_from_file(pvp_trade::ID, program_path).unwrap();
-    let mock_program_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../target/deploy/mock_swap.so");
-    svm.add_program_from_file(mock_swap::ID, mock_program_path).unwrap();
+    let program_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/deploy/pvp_trade.so");
+    svm.add_program_from_file(pvp_trade::ID, program_path)
+        .unwrap();
+    let mock_program_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/deploy/mock_swap.so");
+    svm.add_program_from_file(mock_swap::ID, mock_program_path)
+        .unwrap();
 
     let authority = Keypair::new();
     let challenger = Keypair::new();
@@ -228,7 +233,11 @@ fn join_and_start(
     battle: solana_pubkey::Pubkey,
 ) -> solana_pubkey::Pubkey {
     let (opponent_vault, _) = solana_pubkey::Pubkey::find_program_address(
-        &[b"vault", battle.as_ref(), context.opponent.pubkey().as_ref()],
+        &[
+            b"vault",
+            battle.as_ref(),
+            context.opponent.pubkey().as_ref(),
+        ],
         &pvp_trade::ID,
     );
     let join = program_instruction(
@@ -370,8 +379,7 @@ fn equal_stakes_enter_isolated_player_vaults() {
     );
 
     let raw_battle = context.svm.get_account(&battle).unwrap();
-    let battle_state =
-        pvp_trade::Battle::try_deserialize(&mut raw_battle.data.as_slice()).unwrap();
+    let battle_state = pvp_trade::Battle::try_deserialize(&mut raw_battle.data.as_slice()).unwrap();
     assert_eq!(battle_state.status, pvp_trade::BattleStatus::Funded);
     assert_eq!(battle_state.challenger_vault, challenger_vault);
     assert_eq!(battle_state.opponent_vault, opponent_vault);
@@ -551,7 +559,7 @@ fn execute_swap_instruction(
         input_vault: fixture.challenger_vault,
         output_vault: fixture.asset_vault,
         actor: context.challenger.pubkey(),
-        approved_swap_program: mock_swap::ID,
+        swap_program: mock_swap::ID,
     }
     .to_account_metas(None);
     accounts.extend([
@@ -598,10 +606,16 @@ fn approved_swap_moves_exact_input_into_the_players_asset_vault() {
     );
     context.svm.send_transaction(transaction).unwrap();
 
-    assert_eq!(token_balance(&context.svm, fixture.challenger_vault), STAKE - 20_000_000);
+    assert_eq!(
+        token_balance(&context.svm, fixture.challenger_vault),
+        STAKE - 20_000_000
+    );
     assert_eq!(token_balance(&context.svm, fixture.asset_vault), 40_000_000);
     assert_eq!(token_balance(&context.svm, fixture.pool_input), 20_000_000);
-    assert_eq!(token_balance(&context.svm, fixture.pool_output), STARTING_BALANCE - 40_000_000);
+    assert_eq!(
+        token_balance(&context.svm, fixture.pool_output),
+        STARTING_BALANCE - 40_000_000
+    );
 }
 
 #[test]
@@ -631,5 +645,8 @@ fn route_cannot_redirect_swap_output_to_an_attacker() {
     assert_eq!(token_balance(&context.svm, fixture.asset_vault), 0);
     assert_eq!(token_balance(&context.svm, attacker_destination), 0);
     assert_eq!(token_balance(&context.svm, fixture.pool_input), 0);
-    assert_eq!(token_balance(&context.svm, fixture.pool_output), STARTING_BALANCE);
+    assert_eq!(
+        token_balance(&context.svm, fixture.pool_output),
+        STARTING_BALANCE
+    );
 }

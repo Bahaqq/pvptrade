@@ -8,7 +8,10 @@ pub mod mock_swap {
     use super::*;
 
     pub fn swap(ctx: Context<Swap>, amount_in: u64, amount_out: u64) -> Result<()> {
-        require!(amount_in > 0 && amount_out > 0, MockSwapError::InvalidAmount);
+        require!(
+            amount_in > 0 && amount_out > 0,
+            MockSwapError::InvalidAmount
+        );
 
         token::transfer_checked(
             CpiContext::new(
