@@ -85,7 +85,7 @@ pub mod pvp_trade {
 
         token::transfer_checked(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 TransferChecked {
                     from: ctx.accounts.challenger_source.to_account_info(),
                     mint: ctx.accounts.settlement_mint.to_account_info(),
@@ -124,7 +124,7 @@ pub mod pvp_trade {
 
         token::transfer_checked(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 TransferChecked {
                     from: ctx.accounts.opponent_source.to_account_info(),
                     mint: ctx.accounts.settlement_mint.to_account_info(),
@@ -259,7 +259,7 @@ pub mod pvp_trade {
 
         token::transfer_checked(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 TransferChecked {
                     from: ctx.accounts.challenger_vault.to_account_info(),
                     mint: ctx.accounts.settlement_mint.to_account_info(),
