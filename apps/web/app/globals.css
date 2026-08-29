@@ -1,0 +1,514 @@
+:root {
+  --ink: #0d0f0e;
+  --paper: #f3f1e8;
+  --acid: #c9ff37;
+  --orange: #ff5c35;
+  --line: rgba(13, 15, 14, 0.18);
+  --muted: #6f746d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 83% 13%, rgba(201, 255, 55, 0.22), transparent 25rem),
+    var(--paper);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+.shell {
+  width: min(1180px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.nav {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.brandMark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 50%;
+  letter-spacing: 0;
+}
+
+.navStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 5px rgba(255, 92, 53, 0.13);
+}
+
+.hero {
+  padding: 78px 0 92px;
+}
+
+.eyebrow,
+.sectionHeading > span {
+  margin-bottom: 26px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before,
+.sectionHeading > span::before {
+  content: "";
+  width: 26px;
+  height: 2px;
+  display: inline-block;
+  margin: 0 10px 3px 0;
+  background: var(--orange);
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 0.7fr);
+  gap: 70px;
+  align-items: center;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 780px;
+  margin-bottom: 28px;
+  font-size: clamp(62px, 8vw, 118px);
+  line-height: 0.84;
+  letter-spacing: -0.075em;
+}
+
+h1 span {
+  color: transparent;
+  -webkit-text-stroke: 2px var(--ink);
+}
+
+.heroCopy {
+  max-width: 610px;
+  color: #3e433d;
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin-top: 38px;
+}
+
+.primaryButton {
+  min-height: 52px;
+  padding: 0 24px;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  font-weight: 800;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.textLink {
+  color: inherit;
+  font-weight: 700;
+  text-underline-offset: 5px;
+}
+
+.battleCard {
+  position: relative;
+  padding: 22px;
+  background: #101311;
+  border: 1px solid #30352f;
+  border-radius: 4px;
+  color: #f7f5ec;
+  box-shadow: 18px 18px 0 var(--acid);
+}
+
+.battleCard::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cardHeader,
+.versusRow,
+.poolLine,
+.cardFooter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cardHeader {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #323832;
+}
+
+.tag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 9px;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tag.meme {
+  color: var(--ink);
+  background: var(--acid);
+}
+
+.tag.neutral {
+  color: var(--paper);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.muted {
+  color: #9ba098;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+}
+
+.versusRow {
+  gap: 12px;
+  padding: 28px 0;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.playerRight {
+  text-align: right;
+}
+
+.player strong,
+.player small {
+  display: block;
+}
+
+.player strong {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.player small {
+  color: #858b83;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.avatarA {
+  color: var(--ink);
+  background: var(--acid);
+}
+
+.avatarB {
+  border: 1px dashed #687067;
+  color: #8f968d;
+}
+
+.versus {
+  color: var(--orange);
+  font-family: "Courier New", monospace;
+  font-weight: 900;
+}
+
+.stakeBlock {
+  position: relative;
+  padding: 24px 18px;
+  color: var(--ink);
+  background: var(--acid);
+}
+
+.stakeBlock span,
+.stakeBlock strong {
+  display: block;
+}
+
+.stakeBlock span {
+  margin-bottom: 7px;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.stakeBlock strong {
+  font-size: 29px;
+  letter-spacing: -0.04em;
+}
+
+.poolLine {
+  padding: 15px 2px;
+  border-bottom: 1px solid #2b302c;
+  font-size: 11px;
+}
+
+.poolLine span:first-child {
+  color: #858b83;
+}
+
+.cardFooter {
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 19px;
+  color: #9ba098;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.shield {
+  color: var(--acid);
+  font-size: 17px;
+}
+
+.ticker {
+  overflow: hidden;
+  color: var(--paper);
+  background: var(--orange);
+  transform: rotate(-1deg) scale(1.01);
+}
+
+.ticker div {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  min-width: max-content;
+  padding: 15px 30px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticker i {
+  color: var(--ink);
+  font-style: normal;
+}
+
+.protocol {
+  padding: 126px 0 110px;
+}
+
+.sectionHeading {
+  display: grid;
+  grid-template-columns: 0.65fr 1.35fr;
+  gap: 60px;
+  align-items: start;
+}
+
+.sectionHeading h2,
+.buildStrip h2 {
+  max-width: 720px;
+  font-size: clamp(38px, 5vw, 68px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.stageGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 74px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.stage {
+  min-height: 260px;
+  padding: 24px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.stageNumber {
+  margin-bottom: 70px;
+  color: var(--orange);
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.stage h3 {
+  margin-bottom: 12px;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.stage p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.buildStrip {
+  padding: 88px 0;
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.buildGrid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 80px;
+  align-items: end;
+}
+
+.buildStrip h2 {
+  margin: 22px 0 0;
+}
+
+.buildStrip ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.buildStrip li {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.13);
+  color: #c4c8c1;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.buildStrip li span {
+  color: var(--acid);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 30px 0;
+  color: var(--muted);
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 860px) {
+  .heroGrid,
+  .sectionHeading,
+  .buildGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .battleCard {
+    max-width: 520px;
+  }
+
+  .stageGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .shell {
+    width: min(100% - 26px, 1180px);
+  }
+
+  .navStatus {
+    display: none;
+  }
+
+  .hero {
+    padding-top: 54px;
+  }
+
+  h1 {
+    font-size: 58px;
+  }
+
+  .heroActions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .battleCard {
+    box-shadow: 9px 9px 0 var(--acid);
+  }
+
+  .stageGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stage {
+    min-height: 220px;
+  }
+
+  .footer {
+    gap: 12px;
+    flex-direction: column;
+  }
+}

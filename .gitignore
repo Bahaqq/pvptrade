@@ -1,0 +1,27 @@
+# Node
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.keypair.json
+
+# Anchor / Rust build output
+target/
+.anchor/
+test-ledger/
+
+# Editors and operating systems
+.idea/
+.vscode/*.local.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,88 @@
+# PVP Trade Architecture
+
+## System boundary
+
+PVP Trade separates authoritative custody/state from replaceable user-experience services.
+
+```text
+Wallets
+  |
+  v
+Next.js application ----> Quote/API coordinator ----> Jupiter APIs
+  |                              |
+  |                              v
+  +----------------------> Solana RPC/indexer
+  |
+  v
+PVP Trade program ----CPI----> Jupiter program ----> Solana DEX programs
+  |
+  +---- Battle PDA
+  +---- Player A vault PDA
+  +---- Player B vault PDA
+  +---- Token policy PDAs
+  +---- Fee vault PDA
+```
+
+## Trust model
+
+### Authoritative on-chain components
+
+- Battle terms and lifecycle
+- Player identities and PDA authorities
+- Allowed program/account validation
+- Token-policy snapshots
+- Settlement records and winner
+- Protocol fee calculation
+
+### Non-authoritative off-chain components
+
+- Jupiter quote retrieval
+- Cached PnL display
+- Lobby and search indexes
+- Notifications
+- Keeper scheduling
+
+If all off-chain services stop, funds must remain safe and a replacement client/keeper must be able to continue valid protocol actions.
+
+## Repository architecture
+
+### `packages/protocol`
+
+Pure TypeScript reference implementation of battle rules. It provides fast Windows-native tests and a readable oracle for expected state transitions. It does not custody funds.
+
+### `programs/pvp_trade`
+
+Anchor source for the authoritative Solana program. The first slice mirrors the reference lifecycle. Token custody and Jupiter CPI are added only after lifecycle invariants are stable.
+
+### `apps/web`
+
+Product shell and battle UX. It consumes the protocol package for display types while authoritative transactions target the Anchor program.
+
+## Data flow for a future swap
+
+1. Web app requests a Jupiter quote for the player's battle vault.
+2. Risk service checks route, mint policy, position limit and price impact.
+3. Client presents deterministic minimum output and fees.
+4. Player signs a PVP Trade instruction.
+5. PVP Trade validates state, signer, mints, accounts and destination.
+6. PVP Trade invokes Jupiter via CPI using the player's vault PDA.
+7. Output returns to the player's battle token account.
+8. Program emits an event; indexer updates the read model.
+
+## Windows-first delivery
+
+- Frontend, reference model, linting and tests run with Node.js from PowerShell.
+- PowerShell scripts are the supported local entrypoints.
+- Anchor source is compiled and tested in cloud CI using pinned toolchain versions.
+- Fast program experiments may use Solana Playground.
+- Mainnet artifacts require reproducible builds and manual release approval.
+
+## Security progression
+
+1. Pure lifecycle model and negative-transition tests
+2. Anchor lifecycle and account-constraint tests
+3. Mock token custody and adversarial transfer tests
+4. Jupiter CPI with strict destination validation
+5. Settlement idempotency and partial-failure tests
+6. Property/fuzz testing
+7. Independent audit and closed mainnet alpha

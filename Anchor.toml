@@ -1,0 +1,14 @@
+[toolchain]
+anchor_version = "1.0.2"
+package_manager = "npm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+pvp_trade = "11111111111111111111111111111111"
+
+[provider]
+cluster = "Localnet"
+wallet = ".anchor/local-wallet.json"

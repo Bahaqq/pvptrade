@@ -1,0 +1,20 @@
+{
+  "name": "pvptrade",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @pvptrade/web",
+    "build": "npm run build --workspace @pvptrade/protocol && npm run build --workspace @pvptrade/web",
+    "test": "npm run test --workspace @pvptrade/protocol",
+    "typecheck": "npm run typecheck --workspace @pvptrade/protocol && npm run typecheck --workspace @pvptrade/web",
+    "check": "npm run test && npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  }
+}

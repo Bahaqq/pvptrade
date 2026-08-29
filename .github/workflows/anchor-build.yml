@@ -1,0 +1,39 @@
+name: Anchor cloud build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "programs/**"
+      - "Anchor.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/anchor-build.yml"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "programs/**"
+      - "Anchor.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/anchor-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: solanafoundation/anchor:v1.0.2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show pinned toolchain
+        run: anchor --version
+
+      - name: Build program
+        run: anchor build --ignore-keys
