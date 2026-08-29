@@ -1,0 +1,20 @@
+name: Fund devnet deployer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  airdrop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    container:
+      image: solanafoundation/anchor:v1.0.2
+    steps:
+      - name: Request devnet SOL
+        run: solana airdrop 2 224AuGdaMtvpwb6JpzWpvcV7TdKD2NSyyAuHpEH77zD3 --url devnet
+
+      - name: Verify deployer balance
+        run: solana balance 224AuGdaMtvpwb6JpzWpvcV7TdKD2NSyyAuHpEH77zD3 --url devnet
