@@ -41,5 +41,16 @@ jobs:
       - name: Build program
         run: anchor build --ignore-keys
 
+      - name: Reclaim build space for LiteSVM
+        run: |
+          cp target/deploy/pvp_trade.so /tmp/pvp_trade.so
+          cargo clean
+          mkdir -p target/deploy
+          cp /tmp/pvp_trade.so target/deploy/pvp_trade.so
+
       - name: Run custody integration tests
         run: cargo test -p pvp_trade --test custody
+        env:
+          CARGO_INCREMENTAL: "0"
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
