@@ -67,4 +67,7 @@ jobs:
           DEVNET_DEPLOYER_PATH=.anchor/devnet-deployer.json node scripts/initialize-devnet-protocol.mjs
 
       - name: Verify executable program
-        run: solana program show 2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF --url "$SOLANA_RPC_URL"
+        run: >-
+          solana program show 2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF
+          --url "$SOLANA_RPC_URL"
+          --keypair .anchor/devnet-deployer.json

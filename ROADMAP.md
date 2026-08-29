@@ -17,8 +17,8 @@
 - Kalıcı public program ID atandı; özel deployment keypair yalnızca yerel ve Git-ignore kapsamındaki `.anchor` klasöründe tutuluyor.
 - LiteSVM custody entegrasyon testleri eşit deposit, ayrı vault, iptal iadesi, yanlış mint ve yetersiz bakiye senaryolarını kapsıyor.
 - Manuel ve environment-secret korumalı devnet deployment workflow'u programı deploy edip protocol PDA'sını Circle devnet USDC ile initialize edecek şekilde hazır.
-- Güncel dış engel: devnet deployer cüzdanı faucet rate-limit nedeniyle henüz fonlanmadı; program bu nedenle henüz deploy edilmedi.
-- Sıradaki kritik iş: deployer'a devnet SOL sağlamak, deployment workflow'unu çalıştırmak ve iki cüzdanla canlı Create/Join smoke testi yapmak.
+- Kalıcı program adresi devnet'e deploy edildi ve protocol PDA'sı Circle devnet USDC ile initialize edildi.
+- Sıradaki kritik iş: iki cüzdana devnet USDC sağlayıp canlı Create/Join smoke testi yapmak.
 
 ## 1. Ürün vizyonu
 
