@@ -7,7 +7,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-pvp_trade = "11111111111111111111111111111111"
+pvp_trade = "2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF"
 
 [provider]
 cluster = "Localnet"

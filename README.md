@@ -37,6 +37,14 @@ Run all Windows-compatible checks:
 .\scripts\check.ps1
 ```
 
+Create or inspect the local deployment keypair without overwriting an existing key:
+
+```powershell
+npm run program:keygen
+```
+
+The private program keypair stays under the ignored `.anchor/` directory. Back it up securely before devnet deployment; only the public program address belongs in Git.
+
 The Anchor build is intentionally handled by cloud CI because Anchor's supported local Windows setup requires WSL. Contributors using this repository do not need to open a Linux terminal.
 
 ## Safety status
@@ -44,6 +52,7 @@ The Anchor build is intentionally handled by cloud CI because Anchor's supported
 - The current Anchor program models lifecycle state only.
 - Equal-stake SPL-token deposits into isolated battle PDA vaults are implemented.
 - Open-battle cancellation returns the challenger's locked stake through a PDA-signed transfer.
+- LiteSVM integration tests exercise real SPL Token CPI custody flows in cloud CI.
 - Jupiter CPI, settlement payouts and prize claims are not implemented yet.
 - The web app connects Wallet Standard wallets on devnet, but live battle transactions remain gated until deployment.
 - Do not deploy the current program with real funds.

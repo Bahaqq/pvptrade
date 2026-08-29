@@ -14,7 +14,9 @@
 - Kurucu ve rakip stake'leri ayrı, self-authorised PDA token vault'larına yatırılıyor.
 - Açık battle iptalinde kurucu stake'i PDA imzasıyla iade ediliyor.
 - Web uygulamasında Solana Wallet Standard devnet bağlantısı ve battle hazırlama konsolu hazır.
-- Sıradaki kritik iş: custody entegrasyon testleri, kalıcı program ID ve kontrollü devnet deployment.
+- Kalıcı public program ID atandı; özel deployment keypair yalnızca yerel ve Git-ignore kapsamındaki `.anchor` klasöründe tutuluyor.
+- LiteSVM custody entegrasyon testleri eşit deposit, ayrı vault, iptal iadesi, yanlış mint ve yetersiz bakiye senaryolarını kapsıyor.
+- Sıradaki kritik iş: kontrollü devnet deployment ve web transaction submission.
 
 ## 1. Ürün vizyonu
 

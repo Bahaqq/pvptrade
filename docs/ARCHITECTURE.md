@@ -74,6 +74,7 @@ Product shell and battle UX. It uses the official `@solana/kit` Wallet Standard 
 - Frontend, reference model, linting and tests run with Node.js from PowerShell.
 - PowerShell scripts are the supported local entrypoints.
 - Anchor source is compiled and tested in cloud CI using pinned toolchain versions.
+- LiteSVM custody tests load the compiled SBF artifact, create mock six-decimal settlement accounts, and execute real Token Program CPIs without requiring Linux locally.
 - Fast program experiments may use Solana Playground.
 - Mainnet artifacts require reproducible builds and manual release approval.
 
@@ -81,7 +82,7 @@ Product shell and battle UX. It uses the official `@solana/kit` Wallet Standard 
 
 1. Pure lifecycle model and negative-transition tests
 2. Anchor lifecycle and account-constraint tests
-3. Mock token custody and adversarial transfer tests (in progress; deposit/refund constraints implemented)
+3. Mock token custody and adversarial transfer tests (equal deposits, refund, wrong mint and insufficient balance implemented)
 4. Jupiter CPI with strict destination validation
 5. Settlement idempotency and partial-failure tests
 6. Property/fuzz testing

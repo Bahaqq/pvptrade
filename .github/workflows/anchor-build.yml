@@ -40,3 +40,6 @@ jobs:
 
       - name: Build program
         run: anchor build --ignore-keys
+
+      - name: Run custody integration tests
+        run: cargo test -p pvp_trade --test custody

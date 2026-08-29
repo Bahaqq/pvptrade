@@ -183,6 +183,7 @@ Version 0.2 code implements:
 - Equal challenger and opponent SPL-token deposits
 - Separate self-authorised PDA token vaults scoped by battle and trader
 - Challenger refund when cancelling an open battle
+- LiteSVM custody tests for equal deposits, isolated vaults, atomic refund, wrong mint and insufficient balance
 
 Version 0.2 does not implement:
 

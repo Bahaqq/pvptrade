@@ -1,9 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
-// Lifecycle proof only. A deployment keypair and permanent program id are assigned
-// before devnet deployment; the System Program id must never be used for deployment.
-declare_id!("11111111111111111111111111111111");
+declare_id!("2oQvjoTFEP8pyxhNgtSH7aCpoVfQK7wcWoQSLcQqE3wF");
 
 const MAX_PROTOCOL_FEE_BPS: u16 = 1_000;
 
