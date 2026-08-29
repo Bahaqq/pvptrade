@@ -60,9 +60,11 @@ jobs:
       - name: Reclaim build space for LiteSVM
         run: |
           cp target/deploy/pvp_trade.so /tmp/pvp_trade.so
+          cp target/deploy/mock_swap.so /tmp/mock_swap.so
           cargo clean
           mkdir -p target/deploy
           cp /tmp/pvp_trade.so target/deploy/pvp_trade.so
+          cp /tmp/mock_swap.so target/deploy/mock_swap.so
 
       - name: Run custody integration tests
         shell: bash
