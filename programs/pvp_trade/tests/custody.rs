@@ -638,9 +638,19 @@ fn route_cannot_redirect_swap_output_to_an_attacker() {
         &[&context.challenger],
         context.svm.latest_blockhash(),
     );
-    let result = context.svm.send_transaction(transaction);
+    let error = context
+        .svm
+        .send_transaction(transaction)
+        .expect_err("redirected output must fail");
 
-    assert!(result.is_err());
+    assert!(
+        error
+            .meta
+            .logs
+            .iter()
+            .any(|log| log.contains("MinimumOutputNotMet")),
+        "swap must fail specifically because the player's output vault received too little"
+    );
     assert_eq!(token_balance(&context.svm, fixture.challenger_vault), STAKE);
     assert_eq!(token_balance(&context.svm, fixture.asset_vault), 0);
     assert_eq!(token_balance(&context.svm, attacker_destination), 0);

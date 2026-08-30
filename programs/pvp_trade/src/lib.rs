@@ -269,7 +269,7 @@ pub mod pvp_trade {
             PvpTradeError::RouteDataTooLarge
         );
 
-        let battle = &ctx.accounts.battle;
+        let battle = ctx.accounts.battle.as_ref();
         let actor = ctx.accounts.actor.key();
         validate_active_trader(battle, &actor, Clock::get()?.unix_timestamp)?;
         require!(
@@ -696,40 +696,40 @@ pub struct CreateAssetVault<'info> {
 #[derive(Accounts)]
 pub struct ExecuteSwap<'info> {
     #[account(seeds = [b"protocol"], bump = protocol_config.bump)]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
     #[account(
         seeds = [b"swap_config"],
         bump = swap_config.bump
     )]
-    pub swap_config: Account<'info, SwapConfig>,
+    pub swap_config: Box<Account<'info, SwapConfig>>,
     #[account(mut, seeds = [b"battle", battle.id.as_ref()], bump = battle.bump)]
-    pub battle: Account<'info, Battle>,
+    pub battle: Box<Account<'info, Battle>>,
     #[account(
         seeds = [b"token_policy", input_mint.key().as_ref()],
         bump = input_policy.bump,
         constraint = input_policy.mint == input_mint.key() @ PvpTradeError::InvalidSwapMint
     )]
-    pub input_policy: Account<'info, TokenPolicy>,
+    pub input_policy: Box<Account<'info, TokenPolicy>>,
     #[account(
         seeds = [b"token_policy", output_mint.key().as_ref()],
         bump = output_policy.bump,
         constraint = output_policy.mint == output_mint.key() @ PvpTradeError::InvalidSwapMint
     )]
-    pub output_policy: Account<'info, TokenPolicy>,
-    pub input_mint: Account<'info, Mint>,
-    pub output_mint: Account<'info, Mint>,
+    pub output_policy: Box<Account<'info, TokenPolicy>>,
+    pub input_mint: Box<Account<'info, Mint>>,
+    pub output_mint: Box<Account<'info, Mint>>,
     #[account(
         mut,
         token::mint = input_mint,
         token::authority = input_vault
     )]
-    pub input_vault: Account<'info, TokenAccount>,
+    pub input_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         token::mint = output_mint,
         token::authority = output_vault
     )]
-    pub output_vault: Account<'info, TokenAccount>,
+    pub output_vault: Box<Account<'info, TokenAccount>>,
     pub actor: Signer<'info>,
     /// CHECK: Its address is pinned by SwapConfig and it must remain executable.
     #[account(
