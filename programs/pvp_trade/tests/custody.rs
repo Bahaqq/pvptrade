@@ -546,6 +546,24 @@ fn execute_swap_instruction(
     fixture: &SwapFixture,
     route_destination: solana_pubkey::Pubkey,
 ) -> Instruction {
+    execute_swap_instruction_with_limits(
+        context,
+        fixture,
+        route_destination,
+        39_000_000,
+        40_000_000,
+        250,
+    )
+}
+
+fn execute_swap_instruction_with_limits(
+    context: &TestContext,
+    fixture: &SwapFixture,
+    route_destination: solana_pubkey::Pubkey,
+    minimum_amount_out: u64,
+    quoted_amount_out: u64,
+    slippage_bps: u16,
+) -> Instruction {
     const AMOUNT_IN: u64 = 20_000_000;
     const AMOUNT_OUT: u64 = 40_000_000;
     let mut accounts = pvp_trade::accounts::ExecuteSwap {
@@ -580,9 +598,9 @@ fn execute_swap_instruction(
         accounts,
         pvp_trade::instruction::ExecuteSwap {
             amount_in: AMOUNT_IN,
-            minimum_amount_out: 39_000_000,
-            quoted_amount_out: AMOUNT_OUT,
-            slippage_bps: 250,
+            minimum_amount_out,
+            quoted_amount_out,
+            slippage_bps,
             route_data: mock_swap::instruction::Swap {
                 amount_in: AMOUNT_IN,
                 amount_out: AMOUNT_OUT,
@@ -591,6 +609,46 @@ fn execute_swap_instruction(
         }
         .data(),
     )
+}
+
+#[test]
+fn quoted_output_and_slippage_cannot_hide_an_unsafe_minimum() {
+    let mut context = setup();
+    let fixture = setup_swap_fixture(&mut context, [13; 32]);
+    let swap = execute_swap_instruction_with_limits(
+        &context,
+        &fixture,
+        fixture.asset_vault,
+        1,
+        40_000_000,
+        250,
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[swap],
+        Some(&context.challenger.pubkey()),
+        &[&context.challenger],
+        context.svm.latest_blockhash(),
+    );
+    let error = context
+        .svm
+        .send_transaction(transaction)
+        .expect_err("unsafe minimum output must fail");
+
+    assert!(
+        error
+            .meta
+            .logs
+            .iter()
+            .any(|log| log.contains("InvalidMinimumOutput")),
+        "swap must fail before CPI when its minimum output violates the declared slippage"
+    );
+    assert_eq!(token_balance(&context.svm, fixture.challenger_vault), STAKE);
+    assert_eq!(token_balance(&context.svm, fixture.asset_vault), 0);
+    assert_eq!(token_balance(&context.svm, fixture.pool_input), 0);
+    assert_eq!(
+        token_balance(&context.svm, fixture.pool_output),
+        STARTING_BALANCE
+    );
 }
 
 #[test]

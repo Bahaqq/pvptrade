@@ -264,6 +264,17 @@ pub mod pvp_trade {
             slippage_bps <= ctx.accounts.swap_config.max_slippage_bps,
             PvpTradeError::InvalidSlippage
         );
+        let required_minimum_amount_out = u64::try_from(
+            u128::from(quoted_amount_out)
+                .checked_mul(u128::from(10_000u16 - slippage_bps))
+                .ok_or(PvpTradeError::ArithmeticOverflow)?
+                / 10_000,
+        )
+        .map_err(|_| PvpTradeError::ArithmeticOverflow)?;
+        require!(
+            minimum_amount_out >= required_minimum_amount_out,
+            PvpTradeError::InvalidMinimumOutput
+        );
         require!(
             route_data.len() <= MAX_ROUTE_DATA_BYTES,
             PvpTradeError::RouteDataTooLarge
@@ -962,7 +973,7 @@ pub enum PvpTradeError {
     TradingLocked,
     #[msg("The swap amount must be positive.")]
     InvalidSwapAmount,
-    #[msg("The minimum output exceeds the quoted output.")]
+    #[msg("The minimum output is inconsistent with the quote and slippage limit.")]
     InvalidMinimumOutput,
     #[msg("The router instruction data is too large.")]
     RouteDataTooLarge,
